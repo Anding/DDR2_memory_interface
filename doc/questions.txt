@@ -1,0 +1,60 @@
+PHY
+==============
+
+Brief explanation of these signals?
+	wrrd_ba_add : in std_logic_vector(2 downto 0);
+	wrrd_ras_add : in std_logic_vector(12 downto 0);
+	wrrd_cas_add : in std_logic_vector(8 downto 0);
+	
+=> addresses (bank, column, row) 
+=> the other address is not used
+	
+A little explanation of this logic
+	clk_int_xor <= clk_int_fall XOR clk_int_rise; 
+	clk_int_xor_delay <= clk_int_xor after 300 ps; 
+	
+=> trick to route out a clock from the FPGA
+=> AFTER 300ps is not synthesized (that bit simply skipped), limit errors from the Micron model
+
+Touch on how these are working?
+	ODDR
+	IDDR
+	
+=> Registers at the IO (DDR registers)
+=> One output, two inputs  (checks Xilinx documentation)
+
+
+Can I ask what you are meaning here?
+	DQS-out (FPGA to SDRAM) single ended
+	DQS-in (SDRAM to FPGA) skipped
+
+=> Somehow these strobes need to be toggled at a point in time to indicate date valid
+=> Routing is complicated since timing needs to match DQS and Data
+
+
+Refresh mechanism
+=================
+
+What does this comment mean
+	if (refresh_time_cnt = 640000) then -- should work 10-times slower  
+=> every 64ms must be a refresh (currently 6.4ms)
+	
+Clocking
+========
+ 
+What do you do with clk_100_111 and clk_100_91?
+Could we brefly talk about p4, 5, 6 of overview.pdf
+
+Optimizations
+=============
+
+I would like to attempt some of these, esp. byte select
+Brief discussion on approach?
+
+Required reading
+================
+
+https://en.wikipedia.org/wiki/Synchronous_dynamic_random-access_memory
+(and related links)
+... anything else
+

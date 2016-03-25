@@ -1,0 +1,9 @@
+vivado*/
+ise*/
+t.*
+*.cfi
+*.prm
+impact*
+webtalk*
+usage*
+~$*

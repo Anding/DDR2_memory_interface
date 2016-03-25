@@ -1,0 +1,295 @@
+# set_output_delay -clock [get_clocks clk] 6 [get_ports SDRAM_CK]
+# report_timing -to [get_port SDRAM_CK]  
+INFO: [Timing 38-91] UpdateTimingParams: Speed grade: -1, Delay Type: max.
+INFO: [Timing 38-191] Multithreading enabled for timing update using a maximum of 2 CPUs
+INFO: [Timing 38-78] ReportTimingParams: -to_pins  -max_paths 1 -nworst 1 -delay_type max -sort_by slack.
+Copyright 1986-2015 Xilinx, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2015.4 (win64) Build 1412921 Wed Nov 18 09:43:45 MST 2015
+| Date         : Mon Mar 21 21:53:43 2016
+| Host         : asuspc running 64-bit major release  (build 9200)
+| Command      : report_timing -to [get_ports SDRAM_CK]
+| Design       : fpga_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.14 2014-09-11
+------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (VIOLATED) :        -5.210ns  (required time - arrival time)
+  Source:                 SDRAM_CTRLi/SDRAM_PHYIOi/clk_int_fall_reg/C
+                            (falling edge-triggered cell FDCE clocked by clk_out1_clk_100_100_a7_1  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            SDRAM_CK
+                            (output port clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            5.000ns  (clk rise@10.000ns - clk_out1_clk_100_100_a7_1 fall@5.000ns)
+  Data Path Delay:        4.852ns  (logic 2.631ns (54.228%)  route 2.221ns (45.772%))
+  Logic Levels:           2  (LUT2=1 OBUFDS=1)
+  Output Delay:           6.000ns
+  Clock Path Skew:        0.815ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    -0.815ns = ( 4.185 - 5.000 ) 
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.173ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Discrete Jitter          (DJ):    0.131ns
+    Phase Error              (PE):    0.099ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_out1_clk_100_100_a7_1 fall edge)
+                                                      5.000     5.000 f  
+    E3                                                0.000     5.000 f  clk (IN)
+                         net (fo=0)                   0.000     5.000    clk_100_n_a7_1i/inst/clk_in1
+    E3                   IBUF (Prop_ibuf_I_O)         1.482     6.482 f  clk_100_n_a7_1i/inst/clkin1_ibufg/O
+                         net (fo=1, routed)           1.233     7.715    clk_100_n_a7_1i/inst/clk_in1_clk_100_100_a7_1
+    MMCME2_ADV_X1Y2      MMCME2_ADV (Prop_mmcme2_adv_CLKIN1_CLKOUT0)
+                                                     -6.826     0.889 f  clk_100_n_a7_1i/inst/mmcm_adv_inst/CLKOUT0
+                         net (fo=1, routed)           1.475     2.364    clk_100_n_a7_1i/inst/clk_out1_clk_100_100_a7_1
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     2.460 f  clk_100_n_a7_1i/inst/clkout1_buf/O
+                         net (fo=287, routed)         1.725     4.185    SDRAM_CTRLi/SDRAM_PHYIOi/CLK
+    SLICE_X89Y84         FDCE                                         r  SDRAM_CTRLi/SDRAM_PHYIOi/clk_int_fall_reg/C  (IS_INVERTED)
+  -------------------------------------------------------------------    -------------------
+    SLICE_X89Y84         FDCE (Prop_fdce_C_Q)      ->   0.459     4.644 r  SDRAM_CTRLi/SDRAM_PHYIOi/clk_int_fall_reg/Q
+                         net (fo=2, routed)        ->   0.504     5.149    SDRAM_CTRLi/SDRAM_PHYIOi/clk_int_fall
+    SLICE_X89Y84         LUT2 (Prop_lut2_I1_O)     ->   0.150     5.299 r  SDRAM_CTRLi/SDRAM_PHYIOi/OBUFDSi_i_1/O
+                         net (fo=2, routed)        ->   1.716     7.015    SDRAM_CTRLi/SDRAM_PHYIOi/OBUFDSi/I
+    L6                   OBUFDS (Prop_obufds_I_O)  ->   2.022     9.037 r  SDRAM_CTRLi/SDRAM_PHYIOi/OBUFDSi/P/O
+                         net (fo=0)                ->   0.000     9.037    SDRAM_CK
+    L6                                                                r  SDRAM_CK (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)       10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.173     9.827    
+                         output delay                -6.000     3.827    
+  -------------------------------------------------------------------
+                         required time                          3.827    
+                         arrival time                          -9.037    
+  -------------------------------------------------------------------
+                         slack                                 -5.210    
+
+
+
+
+# set_output_delay -clock [get_clocks clk] 6 [get_ports SDRAM_DQ[*]]
+# report_timing -to [get_port SDRAM_DQ[*]]
+INFO: [Timing 38-91] UpdateTimingParams: Speed grade: -1, Delay Type: max.
+INFO: [Timing 38-191] Multithreading enabled for timing update using a maximum of 2 CPUs
+INFO: [Timing 38-78] ReportTimingParams: -to_pins  -max_paths 1 -nworst 1 -delay_type max -sort_by slack.
+Copyright 1986-2015 Xilinx, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2015.4 (win64) Build 1412921 Wed Nov 18 09:43:45 MST 2015
+| Date         : Mon Mar 21 21:53:43 2016
+| Host         : asuspc running 64-bit major release  (build 9200)
+| Command      : report_timing -to [get_ports {SDRAM_DQ[*]}]
+| Design       : fpga_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.14 2014-09-11
+------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (VIOLATED) :        -3.505ns  (required time - arrival time)
+  Source:                 SDRAM_CTRLi/SDRAM_PHYIOi/dq_oddr[11].dq_oddrn/C
+                            (falling edge-triggered cell ODDR clocked by clk_out1_clk_100_100_a7_1  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            SDRAM_DQ[11]
+                            (output port clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            5.000ns  (clk rise@10.000ns - clk_out1_clk_100_100_a7_1 fall@5.000ns)
+  Data Path Delay:        3.142ns  (logic 3.141ns (99.968%)  route 0.001ns (0.032%))
+  Logic Levels:           1  (OBUFT=1)
+  Output Delay:           6.000ns
+  Clock Path Skew:        0.809ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    -0.809ns = ( 4.191 - 5.000 ) 
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.173ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Discrete Jitter          (DJ):    0.131ns
+    Phase Error              (PE):    0.099ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_out1_clk_100_100_a7_1 fall edge)
+                                                      5.000     5.000 f  
+    E3                                                0.000     5.000 f  clk (IN)
+                         net (fo=0)                   0.000     5.000    clk_100_n_a7_1i/inst/clk_in1
+    E3                   IBUF (Prop_ibuf_I_O)         1.482     6.482 f  clk_100_n_a7_1i/inst/clkin1_ibufg/O
+                         net (fo=1, routed)           1.233     7.715    clk_100_n_a7_1i/inst/clk_in1_clk_100_100_a7_1
+    MMCME2_ADV_X1Y2      MMCME2_ADV (Prop_mmcme2_adv_CLKIN1_CLKOUT0)
+                                                     -6.826     0.889 f  clk_100_n_a7_1i/inst/mmcm_adv_inst/CLKOUT0
+                         net (fo=1, routed)           1.475     2.364    clk_100_n_a7_1i/inst/clk_out1_clk_100_100_a7_1
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     2.460 f  clk_100_n_a7_1i/inst/clkout1_buf/O
+                         net (fo=287, routed)         1.731     4.191    SDRAM_CTRLi/SDRAM_PHYIOi/CLK
+    OLOGIC_X1Y84         ODDR                                         f  SDRAM_CTRLi/SDRAM_PHYIOi/dq_oddr[11].dq_oddrn/C
+  -------------------------------------------------------------------    -------------------
+    OLOGIC_X1Y84         ODDR (Prop_oddr_C_Q)      ->   0.472     4.663 r  SDRAM_CTRLi/SDRAM_PHYIOi/dq_oddr[11].dq_oddrn/Q
+                         net (fo=1, routed)        ->   0.001     4.664    SDRAM_DQ_IOBUF[11]_inst/I
+    U4                   OBUFT (Prop_obuft_I_O)    ->   2.669     7.332 r  SDRAM_DQ_IOBUF[11]_inst/OBUFT/O
+                         net (fo=1, unset)         ->   0.000     7.332    SDRAM_DQ[11]
+    U4                                                                r  SDRAM_DQ[11] (INOUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)       10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.173     9.827    
+                         output delay                -6.000     3.827    
+  -------------------------------------------------------------------
+                         required time                          3.827    
+                         arrival time                          -7.332    
+  -------------------------------------------------------------------
+                         slack                                 -3.505    
+
+
+
+
+# set_output_delay -clock [get_clocks clk] 6 [get_ports SDRAM_DQS*]
+# report_timing -to [get_port SDRAM_DQS*]
+INFO: [Timing 38-91] UpdateTimingParams: Speed grade: -1, Delay Type: max.
+INFO: [Timing 38-191] Multithreading enabled for timing update using a maximum of 2 CPUs
+INFO: [Timing 38-78] ReportTimingParams: -to_pins  -max_paths 1 -nworst 1 -delay_type max -sort_by slack.
+Copyright 1986-2015 Xilinx, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2015.4 (win64) Build 1412921 Wed Nov 18 09:43:45 MST 2015
+| Date         : Mon Mar 21 21:53:43 2016
+| Host         : asuspc running 64-bit major release  (build 9200)
+| Command      : report_timing -to [get_ports SDRAM_DQS*]
+| Design       : fpga_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.14 2014-09-11
+------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (VIOLATED) :        -1.923ns  (required time - arrival time)
+  Source:                 SDRAM_CTRLi/SDRAM_PHYIOi/dq_write_reg/C
+                            (rising edge-triggered cell FDPE clocked by clk_out1_clk_100_100_a7_1  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            SDRAM_DQS[0]
+                            (output port clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (clk rise@10.000ns - clk_out1_clk_100_100_a7_1 rise@0.000ns)
+  Data Path Delay:        6.569ns  (logic 3.133ns (47.687%)  route 3.436ns (52.313%))
+  Logic Levels:           1  (OBUFT=1)
+  Output Delay:           6.000ns
+  Clock Path Skew:        0.819ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    -0.819ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.173ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Discrete Jitter          (DJ):    0.131ns
+    Phase Error              (PE):    0.099ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_out1_clk_100_100_a7_1 rise edge)
+                                                      0.000     0.000 r  
+    E3                                                0.000     0.000 r  clk (IN)
+                         net (fo=0)                   0.000     0.000    clk_100_n_a7_1i/inst/clk_in1
+    E3                   IBUF (Prop_ibuf_I_O)         1.482     1.482 r  clk_100_n_a7_1i/inst/clkin1_ibufg/O
+                         net (fo=1, routed)           1.233     2.715    clk_100_n_a7_1i/inst/clk_in1_clk_100_100_a7_1
+    MMCME2_ADV_X1Y2      MMCME2_ADV (Prop_mmcme2_adv_CLKIN1_CLKOUT0)
+                                                     -6.826    -4.111 r  clk_100_n_a7_1i/inst/mmcm_adv_inst/CLKOUT0
+                         net (fo=1, routed)           1.475    -2.636    clk_100_n_a7_1i/inst/clk_out1_clk_100_100_a7_1
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096    -2.540 r  clk_100_n_a7_1i/inst/clkout1_buf/O
+                         net (fo=287, routed)         1.721    -0.819    SDRAM_CTRLi/SDRAM_PHYIOi/CLK
+    SLICE_X89Y81         FDPE                                         r  SDRAM_CTRLi/SDRAM_PHYIOi/dq_write_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X89Y81         FDPE (Prop_fdpe_C_Q)     ->    0.456    -0.363 f  SDRAM_CTRLi/SDRAM_PHYIOi/dq_write_reg/Q
+                         net (fo=19, routed)      ->    3.436     3.074    SDRAM_DQ_TRI[0]
+    U9                   OBUFT (TriStatE_obuft_T_O)
+                                                  ->    2.677     5.750 r  SDRAM_DQS_OBUFT[0]_inst/O
+                         net (fo=0)               ->    0.000     5.750    SDRAM_DQS[0]
+    U9                                                                r  SDRAM_DQS[0] (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)       10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.173     9.827    
+                         output delay                -6.000     3.827    
+  -------------------------------------------------------------------
+                         required time                          3.827    
+                         arrival time                          -5.750    
+  -------------------------------------------------------------------
+                         slack                                 -1.923    
+
+
+
+
+# set_output_delay -clock [get_clocks clk] 6 [get_ports SDRAM_nCAS]
+# report_timing -to [get_port SDRAM_nCAS]
+INFO: [Timing 38-91] UpdateTimingParams: Speed grade: -1, Delay Type: max.
+INFO: [Timing 38-191] Multithreading enabled for timing update using a maximum of 2 CPUs
+INFO: [Timing 38-78] ReportTimingParams: -to_pins  -max_paths 1 -nworst 1 -delay_type max -sort_by slack.
+Copyright 1986-2015 Xilinx, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2015.4 (win64) Build 1412921 Wed Nov 18 09:43:45 MST 2015
+| Date         : Mon Mar 21 21:53:43 2016
+| Host         : asuspc running 64-bit major release  (build 9200)
+| Command      : report_timing -to [get_ports SDRAM_nCAS]
+| Design       : fpga_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.14 2014-09-11
+------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             1.523ns  (required time - arrival time)
+  Source:                 SDRAM_CTRLi/SDRAM_PHYIOi/SDRAM_nCAS_reg/C
+                            (rising edge-triggered cell FDPE clocked by clk_out1_clk_100_100_a7_1  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            SDRAM_nCAS
+                            (output port clocked by clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk
+  Path Type:              Max at Slow Process Corner
+  Requirement:            10.000ns  (clk rise@10.000ns - clk_out1_clk_100_100_a7_1 rise@0.000ns)
+  Data Path Delay:        3.106ns  (logic 3.105ns (99.968%)  route 0.001ns (0.032%))
+  Logic Levels:           1  (OBUF=1)
+  Output Delay:           6.000ns
+  Clock Path Skew:        0.802ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.000ns = ( 10.000 - 10.000 ) 
+    Source Clock Delay      (SCD):    -0.802ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.173ns  ((TSJ^2 + DJ^2)^1/2) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Discrete Jitter          (DJ):    0.131ns
+    Phase Error              (PE):    0.099ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_out1_clk_100_100_a7_1 rise edge)
+                                                      0.000     0.000 r  
+    E3                                                0.000     0.000 r  clk (IN)
+                         net (fo=0)                   0.000     0.000    clk_100_n_a7_1i/inst/clk_in1
+    E3                   IBUF (Prop_ibuf_I_O)         1.482     1.482 r  clk_100_n_a7_1i/inst/clkin1_ibufg/O
+                         net (fo=1, routed)           1.233     2.715    clk_100_n_a7_1i/inst/clk_in1_clk_100_100_a7_1
+    MMCME2_ADV_X1Y2      MMCME2_ADV (Prop_mmcme2_adv_CLKIN1_CLKOUT0)
+                                                     -6.826    -4.111 r  clk_100_n_a7_1i/inst/mmcm_adv_inst/CLKOUT0
+                         net (fo=1, routed)           1.475    -2.636    clk_100_n_a7_1i/inst/clk_out1_clk_100_100_a7_1
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096    -2.540 r  clk_100_n_a7_1i/inst/clkout1_buf/O
+                         net (fo=287, routed)         1.738    -0.802    SDRAM_CTRLi/SDRAM_PHYIOi/CLK
+    OLOGIC_X1Y98         FDPE                                         r  SDRAM_CTRLi/SDRAM_PHYIOi/SDRAM_nCAS_reg/C
+  -------------------------------------------------------------------    -------------------
+    OLOGIC_X1Y98         FDPE (Prop_fdpe_C_Q)    ->     0.472    -0.330 r  SDRAM_CTRLi/SDRAM_PHYIOi/SDRAM_nCAS_reg/Q
+                         net (fo=1, routed)      ->     0.001    -0.329    SDRAM_nCAS_OBUF
+    L1                   OBUF (Prop_obuf_I_O)    ->     2.633     2.304 r  SDRAM_nCAS_OBUF_inst/O
+                         net (fo=0)              ->     0.000     2.304    SDRAM_nCAS
+    L1                                                                r  SDRAM_nCAS (OUT)
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk rise edge)       10.000    10.000 r  
+                         clock pessimism              0.000    10.000    
+                         clock uncertainty           -0.173     9.827    
+                         output delay                -6.000     3.827    
+  -------------------------------------------------------------------
+                         required time                          3.827    
+                         arrival time                          -2.304    
+  -------------------------------------------------------------------
+                         slack                                  1.523    
+
+
+
+
