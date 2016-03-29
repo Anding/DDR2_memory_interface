@@ -231,6 +231,7 @@ when read_0_2 =>
  				--counter <= 32768;
                	--------------------
                	state <= write_1_0;
+               	--state <= read_0_2;
 				if NOT (rd_dat_reg(31 downto 0) = x"5555AAAA") then
 				--if NOT (rd_dat_reg(31 downto 0) = x"AAAA5555") then
 	               	bug_found <= '1';

@@ -93,7 +93,7 @@ BEGIN
       WAIT FOR 10 ns;
       
       if (led = "11") then
-	      ASSERT false REPORT "test passed" severity failure;
+	      ASSERT false REPORT "test passed" severity warning;
 	  elsif (led = "01") then
 	      ASSERT false REPORT "test failed" severity failure;
 	  end if;
@@ -121,13 +121,13 @@ reset_gen:PROCESS
       nrst <= '1' ;
 
       WAIT FOR 10100 ns;
-      ASSERT false REPORT "test done" severity failure;
+      ASSERT false REPORT "test done" severity warning;
    END PROCESS;
 
 ------------------------------------------------------------------------
 --	FPGA
 ------------------------------------------------------------------------
-m3_fpgai : fpga_top port map (
+UUT : fpga_top port map (
    	clk => clk,
   	nrst => nrst, 
 	led		=> led,
