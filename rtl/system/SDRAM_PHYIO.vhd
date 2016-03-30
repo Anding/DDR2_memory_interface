@@ -151,6 +151,20 @@ type fsm_type is (init,
 			precharge_0, precharge_done,
 			read_0, read_1, read_2, read_3, read_done,
 			refresh_0);
+			
+-- DDR2 SRAM commands (1Gb_DDD2.pdf, p70) 						CKE CS# RAS# CAS# WE#
+constant CMD_LOAD_MODE			: std_logic_vector(4 downto 0) := "10000";
+constant CMD_REFRESH			: std_logic_vector(4 downto 0) := "10001";
+constant CMD_ENTER_SELF_REFRESH : std_logic_vector(4 downto 0) := "00001";
+constant CMD_EXIT_SELF_REFRESH	: std_logic_vector(4 downto 0) := "10111";
+constant CMD_PRECHARGE			: std_logic_vector(4 downto 0) := "10010";
+constant CMD_ACTIVATE			: std_logic_vector(4 downto 0) := "10011";
+constant CMD_WRITE 				: std_logic_vector(4 downto 0) := "10100";  -- also WRITE with auto precharge
+constant CMD_READ				: std_logic_vector(4 downto 0) := "10101";	-- also READ with auto precharge
+constant CMD_NOP				: std_logic_vector(4 downto 0) := "10111";
+constant CMD_DESELECT			: std_logic_vector(4 downto 0) := "11111";
+constant CMD_ENTER_POWER_DOWN	: std_logic_vector(4 downto 0) := "00111";
+constant CMD_EXIT_POWER_DOWN	: std_logic_vector(4 downto 0) := "10111";
 
 signal SDRAM_dq_out_tmp : std_logic_vector(15 downto 0);
 signal SDRAM_dq_out : std_logic_vector(31 downto 0);
@@ -168,8 +182,19 @@ signal clk_int_xor_delay : std_logic;
 signal clk_int_rise : std_logic := '0';   
 signal clk_int_fall : std_logic := '0';
 signal clk_int_xor : std_logic;
+signal command : std_logic_vector(4 downto 0);
 
 begin    
+
+-----------------------------------------------------
+--	PHY: SDRAM commands
+-----------------------------------------------------
+
+SDRAM_CKE	<= COMMAND(4);
+SDRAM_nCS	<= COMMAND(3);
+SDRAM_nRAS	<= COMMAND(2);
+SDRAM_nCAS	<= COMMAND(1);
+SDRAM_nWE	<= COMMAND(0);
 
 -----------------------------------------------------
 --	PHY: SDRAM_CLK
@@ -311,7 +336,7 @@ dm_oddrn : ODDR
       R           => '0',
       S           => '0'
     );
-end generate;         
+end generate;    
 
 -----------------------------------------------------
 --	Glue Logic:
@@ -330,11 +355,12 @@ if (nrst='0') then
 	state <= init;
 	SDRAM_A <= conv_std_logic_vector(0, SDRAM_A'length);
 	SDRAM_BA <= "000";
-	SDRAM_nCAS <= '1';
-	SDRAM_nCS <= '1';
-	SDRAM_nRAS <= '1';
-	SDRAM_nWE <= '1';
-	SDRAM_CKE <= '0';
+	COMMAND <= CMD_ENTER_POWER_DOWN;
+	--SDRAM_nCAS <= '1';
+	--SDRAM_nCS <= '1';
+	--SDRAM_nRAS <= '1';
+	--SDRAM_nWE <= '1';
+	--SDRAM_CKE <= '0';
 	dq_write <= '0';
 	dqs_write <= '0';
 	dm_write <= "0000";
@@ -357,8 +383,9 @@ when init =>
 			else
 				counter <= counter + 1;
 			end if;
-			SDRAM_nCS <= '0';  
-			SDRAM_CKE <= '1';
+			COMMAND <= CMD_EXIT_POWER_DOWN;
+			--SDRAM_nCS <= '0';  
+			--SDRAM_CKE <= '1';
 			wr_ack <= '0';
 -----------------------------------------------------
 --	initial precharge all command (1Gb_DDR2 p87)
@@ -366,17 +393,19 @@ when init =>
 when init_precharge => 
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00010000000000";		-- A10 high indicates an all bank precharge command
-			SDRAM_nCAS <= '1';					-- PRECHARGE command (1GB_DDR2 p70)
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '1';					-- PRECHARGE command (1GB_DDR2 p70)
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_PRECHARGE;
 			state <= init_precharge_done;
 when init_precharge_done =>						-- NOP command	
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00010000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 4) then				-- tRPA (precharge all) timing requirement = 12.5ns (p36)
 				state <= init_mode_2;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -391,17 +420,19 @@ when init_mode_2 =>
 			SDRAM_A <= "00000000000000";		-- SDRAM_A is used to set the mode register
 												-- E7 '0' = 1x refresh rate (0C to 85C)
 												-- all other bits must be zero (1GB_DDR p85)
-			SDRAM_nCAS <= '0';					-- LOAD MODE command (1GB_DDR p70)
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';					-- LOAD MODE command (1GB_DDR p70)
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_2_done;
 when init_mode_2_done =>						-- NOP command	
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 2) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_3;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -414,17 +445,19 @@ when init_mode_2_done =>						-- NOP command
 when init_mode_3 =>
 			SDRAM_BA <= "011";					-- Extended Mode Register (EMR) 3
 			SDRAM_A <= "00000000000000";		-- See 1GB_DDR2 p86  for register definition		
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_3_done;
 when init_mode_3_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 2) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_1;
 				counter <= 0;
@@ -439,17 +472,19 @@ when init_mode_1 =>
 			SDRAM_A <= "00010000000100";		-- DQS# disable	/ RTT = 75 Ohms
 --					   "00010001000100"			-- DQS# disable / RTT = 50 Ohms 		
 												-- See 1GB_DDR p81 for register definition 										
-			SDRAM_nCAS <= '0';	
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';	
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_1_done;
 when init_mode_1_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 2) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_0;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -463,17 +498,19 @@ when init_mode_0 =>
 			SDRAM_BA <= "000";					-- Mode register
 			SDRAM_A <= "00010100110010";		-- Burst length = 4 / CAS latency = 3 / Reset DLL / Write recovery = 3
 												-- Write recovery time = 15ns
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_0_done;
 when init_mode_0_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 250) then				-- 200 cycles of clock until READ/WRITE are required following DLL reset
 				state <= init_precharge_0;		-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -486,17 +523,19 @@ when init_mode_0_done =>
 when init_precharge_0 =>						-- another init precharge command
 			SDRAM_BA <= "000";	
  			SDRAM_A <= "00010000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_PRECHARGE;
 			state <= init_precharge_0_done;
 when init_precharge_0_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 2) then				-- tRPA (precharge all) timing requirement = 12.5ns (p36)
 				state <= init_refresh_0;		-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -509,17 +548,19 @@ when init_precharge_0_done =>
 when init_refresh_0 =>
 			SDRAM_BA <= "000";					-- REFRESH command
  			SDRAM_A <= "00010000000000";		-- A10 actually has no effect
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '1';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '1';
+			COMMAND <= CMD_REFRESH;
 			state <= init_refresh_0_done;
 when init_refresh_0_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 26) then				-- tRFC (REFRESH interval) = 127.5ns (p37)
 				state <= init_refresh_1;		-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -532,17 +573,19 @@ when init_refresh_0_done =>
 when init_refresh_1 =>							-- two or more refresh commands are required (note 10, p89)
 			SDRAM_BA <= "000";	
  			SDRAM_A <= "00010000000000";
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '1';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '1';
+			COMMAND <= CMD_REFRESH;
 			state <= init_refresh_1_done;
 when init_refresh_1_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 26) then
 				state <= init_mode_0_2;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -556,17 +599,19 @@ when init_mode_0_2 =>
 			SDRAM_BA <= "000";					-- Mode register
  			SDRAM_A <= "00010000110010";		--same settings EXCEPT do not reset the DLL
 --				   (cf."00010100110010" first time)
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_0_2_done;
 when init_mode_0_2_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 1) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_1_2;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -581,17 +626,19 @@ when init_mode_1_2 =>
  			SDRAM_A <= "00011110000100";		-- Default OCD / DQS# disable / RTT = 75 Ohm
 --					   "00011111000100"			-- Default OCD / DQS# disable / RTT = 50 Ohm
 												-- See 1GB_DDR p81 for register definition 
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_1_2_done;
 when init_mode_1_2_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 1) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_1_3;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
@@ -605,17 +652,19 @@ when init_mode_1_3 =>
 			SDRAM_BA <= "001";					-- EMR 1
  			SDRAM_A <= "00010000000100";		-- Exit OCD / DQS# disable / RTT = 75 Ohm
 --                     "00010001000100"			-- Exit OCD / DQS# disable / RTT = 75 Ohm
-			SDRAM_nCAS <= '0';
-			SDRAM_nRAS <= '0';
-			SDRAM_nWE <= '0';
+			--SDRAM_nCAS <= '0';
+			--SDRAM_nRAS <= '0';
+			--SDRAM_nWE <= '0';
+			COMMAND <= CMD_LOAD_MODE;
 			state <= init_mode_1_3_done;
 when init_mode_1_3_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			if (counter = 20) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				if (wr_we = '1') then
 					state <= idle; --write_0;
@@ -628,10 +677,11 @@ when init_mode_1_3_done =>
 --	IDLE
 -----------------------------------------------------
 when idle =>	
-			SDRAM_nCAS <= '1';					-- NOP
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';					-- NOP
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			wr_ack <= '0';
 			rd_valid <= '0';
 			dqs_write <= '0';
@@ -641,9 +691,10 @@ when idle =>
 		 	   (rd_re = '1') then  				-- Should there be a way to get from idle to recharge directly?
 		 	   	SDRAM_BA <= wrrd_ba_add;		-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
  				SDRAM_A <= '0' & wrrd_ras_add;  -- Row address in A[12:0] (8K) - 1Gb_DDR2 p2
-				SDRAM_nCAS <= '1';				-- BANK ACTIVATE command (p90)
-				SDRAM_nRAS <= '0';
-				SDRAM_nWE <= '1';        
+				--SDRAM_nCAS <= '1';				-- BANK ACTIVATE command (p90)
+				--SDRAM_nRAS <= '0';
+				--SDRAM_nWE <= '1';  
+				COMMAND <= CMD_ACTIVATE;
 				state <= bank_0;
 				bank_active <= wrrd_ba_add; 			-- save the activating bank (to detect a change)
 				bank_row_active <= '0' & wrrd_ras_add;  -- save the activating row (to detect a change)
@@ -653,21 +704,24 @@ when idle =>
 --	Bank Active
 -----------------------------------------------------
 when bank_0 => 									-- first state after activating a bank
-			SDRAM_nRAS <= '1';					-- NOP command (p71)
+			--SDRAM_nRAS <= '1';					-- NOP command (p71)
+			COMMAND <= CMD_NOP;
 	   		state <= bank_done;
 -----------------------------------------------------
 --	Bank Active Done
 -----------------------------------------------------
 when bank_done =>
+			COMMAND <= CMD_NOP;
 			state <= active;  					-- tRCD (ROW to COLUMN delay) = 12.5 ns
 -----------------------------------------------------
 --	Active
 -----------------------------------------------------
 when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
-			SDRAM_nCAS <= '1';					-- NOP command
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';					-- NOP command
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			wr_ack <= '0';
 			rd_valid <= '0';
 			dqs_write <= '0';
@@ -681,9 +735,10 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			   	(	(NOT (bank_active = wrrd_ba_add)) OR							-- changing bank
 			   		(NOT (bank_row_active(12 downto 0) = wrrd_ras_add)) ) then		-- changing row
 				SDRAM_A <= "00000000000000";
-				SDRAM_nRAS <= '0';				-- PRECHARGE (deactivate row)
-				SDRAM_nCAS <= '1';
-				SDRAM_nWE <= '0';          
+				--SDRAM_nRAS <= '0';				-- PRECHARGE (deactivate row)
+				--SDRAM_nCAS <= '1';
+				--SDRAM_nWE <= '0';         
+				COMMAND <= CMD_PRECHARGE;
 				state <= precharge_0;
 			-----------------------------------------------------
 			--	CAS handling
@@ -693,14 +748,16 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 				SDRAM_A <= "0000" & wrrd_cas_add(8 downto 0) & '0';
 												-- Column address in A[9:0] (1K) - 1Gb_DDR2 p2
 				-- MT47H64M16HR-25E is WORD addressable. wrrd_cas_add is a LONGWORD address
-	   			SDRAM_nCAS <= '0';
-				SDRAM_nRAS <= '1';
+	   			--SDRAM_nCAS <= '0';
+				--SDRAM_nRAS <= '1';
 				if (wr_we = '1') then
-					SDRAM_nWE <= '0';			-- READ        
+					--SDRAM_nWE <= '0';
+					COMMAND <= CMD_WRITE;
 					state <= write_0;
 				else
-					SDRAM_nWE <= '1';			-- WRITE
+					--SDRAM_nWE <= '1';			
 					state <= read_0; 
+					COMMAND <= CMD_READ;
 					rd_ack <= '1';
 				end if;
 			-----------------------------------------------------
@@ -708,17 +765,19 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			-----------------------------------------------------  
 			elsif (refresh = '1') then
 				SDRAM_A <= "00000000000000";	-- PRECHARGE
-				SDRAM_nRAS <= '0';
-				SDRAM_nCAS <= '1';
-				SDRAM_nWE <= '0';          
+				--SDRAM_nRAS <= '0';
+				--SDRAM_nCAS <= '1';
+				--SDRAM_nWE <= '0';     
+				COMMAND <= CMD_PRECHARGE;
 				state <= precharge_0;				
 		 	end if;
 -----------------------------------------------------
 --	Precharge All Delay
 -----------------------------------------------------
 when precharge_0 => 				-- tRPA (precharge all) timing requirement = 12.5ns (p36)
-			SDRAM_nRAS <= '1';		-- NOP
-			SDRAM_nWE <= '1';  
+			--SDRAM_nRAS <= '1';		-- NOP
+			--SDRAM_nWE <= '1';  
+			COMMAND <= CMD_NOP;
 	   		state <= precharge_done; 
 	   		counter <= 0;
 -----------------------------------------------------
@@ -727,10 +786,12 @@ when precharge_0 => 				-- tRPA (precharge all) timing requirement = 12.5ns (p36
 when precharge_done =>
 			if (refresh = '1') then
 				if (counter = 20) then
-					SDRAM_nCAS <= '0';
-					SDRAM_nRAS <= '0';
+					--SDRAM_nCAS <= '0';
+					--SDRAM_nRAS <= '0';
+					COMMAND <= CMD_REFRESH;
 					state <= refresh_0;
 				else
+					COMMAND <= CMD_NOP;
 					counter <= counter + 1;
 				end if;					
 			else
@@ -740,8 +801,9 @@ when precharge_done =>
 --	Refresh All Delay
 -----------------------------------------------------
 when refresh_0 => 										
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';							
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';	
+			COMMAND <= CMD_NOP;
 			if (refresh = '0') then
 				state <= idle;  
 			end if;
@@ -749,8 +811,9 @@ when refresh_0 =>
 --	Write 0
 -----------------------------------------------------
 when write_0 => 										-- SDRAM registers WRITE command
-			SDRAM_nCAS <= '1';							-- NOP
-			SDRAM_nWE <= '1';
+			--SDRAM_nCAS <= '1';							-- NOP
+			--SDRAM_nWE <= '1';
+			COMMAND <= CMD_NOP;
 			dm_write <= "1100";							-- dm MASK is inverted before output, so '1' here means write enable
 														-- dm needs to appear coincident with the data
 														-- dm is output through the DDR interface
@@ -761,17 +824,20 @@ when write_0 => 										-- SDRAM registers WRITE command
 when write_1 =>
 			dq_write <= '1';							-- enable DQ strobe (1Gb_DDR2 p84)
 			dm_write <= "0011";
+			COMMAND <= CMD_NOP;
 			state <= write_2;
 -----------------------------------------------------
 --	Write 2
 -----------------------------------------------------
 when write_2 =>
 			dm_write <= "0000";   						-- 4n prefectch with x16 requires a second longword 
+			COMMAND <= CMD_NOP;
 			state <= write_3;							--  however the last 32 bits are not presented by the controller
 -----------------------------------------------------
 --	Write 3
 -----------------------------------------------------
 when write_3 =>
+			COMMAND <= CMD_NOP;
 			state <= write_4;
 -----------------------------------------------------
 --	Write 4
@@ -779,12 +845,14 @@ when write_3 =>
 when write_4 =>
 			wr_ack <= '1';
 			dq_write <= '0';							-- disable DQ strobe
+			COMMAND <= CMD_NOP;
 			state <= write_5;
 -----------------------------------------------------
 --	Write 4
 -----------------------------------------------------
 when write_5 =>      
 			wr_ack <= '0';
+			COMMAND <= CMD_NOP;
 			state <= active;
 -----------------------------------------------------
 --	Read 0
@@ -792,31 +860,36 @@ when write_5 =>
 when read_0 =>											-- SDRAM registers READ command
 			SDRAM_BA <= wrrd_ba_add;
 			SDRAM_A <= "00000000000000";				-- NOP (active bank commands, p 71)
-			SDRAM_nCAS <= '1';
-			SDRAM_nRAS <= '1';
-			SDRAM_nWE <= '1';
-			SDRAM_CKE <= '1';
+			--SDRAM_nCAS <= '1';
+			--SDRAM_nRAS <= '1';
+			--SDRAM_nWE <= '1';
+			--SDRAM_CKE <= '1';
+			COMMAND <= CMD_NOP;
 			state <= read_1;
 			rd_ack <= '0';
 -----------------------------------------------------
 --	Read 1
 -----------------------------------------------------
 when read_1 => 											-- 1st cycle of CAS latency
+			COMMAND <= CMD_NOP;
 			state <= read_2; 
 -----------------------------------------------------
 --	Read 2
 -----------------------------------------------------
 when read_2 =>											-- 2nd cycle of CAS latency
+			COMMAND <= CMD_NOP;
 			state <= read_3; 
 -----------------------------------------------------
 --	Read 3
 -----------------------------------------------------
 when read_3 => 											-- 3rd cycle of CAS latency
+			COMMAND <= CMD_NOP;
 			state <= read_done;
 -----------------------------------------------------
 --	Read Done [CAS latency is set to 3]
 -----------------------------------------------------
 when read_done => 										-- IDDR buffer has registered signal at the output
+			COMMAND <= CMD_NOP;
 			rd_valid <= '1';							-- "rd_dat <= SDRAM_dq_in" is made as a concurrent statement and rd_dat is not registered
  			state <= active;							-- keep ROW open and return to ACTIVE state (next access likely on same row)							
 														-- 4n prefetch with x16 yields a 64 bit word, the latter 32 bits currently ignored
