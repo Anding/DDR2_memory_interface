@@ -183,6 +183,7 @@ signal clk_int_rise : std_logic := '0';
 signal clk_int_fall : std_logic := '0';
 signal clk_int_xor : std_logic;
 signal command : std_logic_vector(4 downto 0);
+signal rd_dat_r : std_logic_vector(31 downto 0);	
 
 begin    
 
@@ -343,7 +344,13 @@ end generate;
 -----------------------------------------------------
 
 SDRAM_dq_out <= wr_dat;
-rd_dat <= SDRAM_dq_in;
+rd_dat <= rd_dat_r;
+
+process
+begin
+	wait until rising_edge(CLK);
+	rd_dat_r <= SDRAM_dq_in;			-- register data in
+end process;
 
 -----------------------------------------------------
 --	FSM

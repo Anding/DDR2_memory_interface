@@ -165,12 +165,14 @@ rd_dat_reg_gen : process (clk_int, nrst_reg)
 begin
 if (nrst_reg='0') then
 	rd_dat_reg <= conv_std_logic_vector(0, rd_dat_reg'length);  
-	rd_dat_reg0 <= conv_std_logic_vector(0, rd_dat_reg0'length);
+--	rd_dat_reg0 <= conv_std_logic_vector(0, rd_dat_reg0'length);
 elsif (clk_int'event and clk_int='1') then	
-	rd_dat_reg <= rd_dat_reg0;
-	rd_dat_reg0 <= rd_dat;                                       
+	rd_dat_reg <= rd_dat_reg0;                  					-- one cycle delay for some reason                 
 end if;
 end process;
+
+	-- rd_dat is already registered by PHYIO
+	rd_dat_reg0 <= rd_dat;  
 
 -----------------------------------------------------
 --	FSM
