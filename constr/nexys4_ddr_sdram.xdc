@@ -122,26 +122,26 @@ set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_UDQM]
 
 set_property PACKAGE_PIN L1 [get_ports SDRAM_nCAS]
 set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_nCAS]
-set_property IOB TRUE [get_cells -hierarchical SDRAM_nCAS_reg]
+#set_property IOB TRUE [get_cells -hierarchical SDRAM_nCAS_reg]
 
 set_property PACKAGE_PIN K6 [get_ports SDRAM_nCS]
 set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_nCS]
-set_property IOB TRUE [get_cells -hierarchical SDRAM_nCS_reg]
+#set_property IOB TRUE [get_cells -hierarchical SDRAM_nCS_reg]
 
 set_property PACKAGE_PIN N4 [get_ports SDRAM_nRAS]
 set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_nRAS]
-set_property IOB TRUE [get_cells -hierarchical SDRAM_nRAS_reg]
+#set_property IOB TRUE [get_cells -hierarchical SDRAM_nRAS_reg]
 
 set_property PACKAGE_PIN N2 [get_ports SDRAM_nWE]
 set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_nWE]
-set_property IOB TRUE [get_cells -hierarchical SDRAM_nWE_reg]
+#set_property IOB TRUE [get_cells -hierarchical SDRAM_nWE_reg]
 
 set_property PACKAGE_PIN M3 [get_ports SDRAM_ODT]
 set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_ODT]
 
 set_property PACKAGE_PIN M1 [get_ports SDRAM_CKE]
 set_property IOSTANDARD LVCMOS18 [get_ports SDRAM_CKE]
-set_property IOB TRUE [get_cells -hierarchical SDRAM_CKE_reg]
+#set_property IOB TRUE [get_cells -hierarchical SDRAM_CKE_reg]
 
 set_property IOSTANDARD DIFF_HSTL_I_18 [get_ports SDRAM_CK]
 set_property PACKAGE_PIN L6 [get_ports SDRAM_CK]
