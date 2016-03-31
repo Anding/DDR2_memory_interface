@@ -35,6 +35,7 @@ architecture RTL of fpga_top is
 component SDRAM_CTRL is 
 port (
 	CLK   : in  std_logic;
+	CLK_90 : in std_logic;
     nrst : in  std_logic; 
 
 	wrrd_ba_add : in std_logic_vector(2 downto 0);
@@ -71,21 +72,24 @@ end component;
 component clk_100_111_a7_1
   Port ( 
     clk_in1 : in STD_LOGIC;
-    clk_out1 : out STD_LOGIC
+    clk_out1 : out STD_LOGIC;
+    clk_out2 : out STD_LOGIC   
   ); 
 end component;  
 
 component clk_100_100_a7_1
   Port ( 
     clk_in1 : in STD_LOGIC;
-    clk_out1 : out STD_LOGIC
+    clk_out1 : out STD_LOGIC;
+    clk_out2 : out STD_LOGIC 
   ); 
 end component;  
 
 component clk_100_91_a7_1
   Port ( 
     clk_in1 : in STD_LOGIC;
-    clk_out1 : out STD_LOGIC
+    clk_out1 : out STD_LOGIC;
+    clk_out2 : out STD_LOGIC 
   ); 
 end component;
 
@@ -120,6 +124,7 @@ signal bug_found : std_logic;
 
 signal SDRAM_DM : std_logic_vector(1 downto 0);
 signal clk_int : std_logic;
+signal clk_int_90 : std_logic;
 signal nrst_reg : std_logic;
 signal state : fsm_type; 
 signal counter : integer range 0 to 32768;
@@ -141,7 +146,8 @@ clk_100_n_a7_1i: clk_100_100_a7_1
   port map
    (-- Clock in ports
     clk_in1 => clk,
-    clk_out1 => clk_int);
+    clk_out1 => clk_int,
+    clk_out2 => clk_int_90);
     
 --clk_int <= clk;
 
@@ -583,6 +589,7 @@ SDRAM_LDQM <= SDRAM_DM(0);
 SDRAM_CTRLi : SDRAM_CTRL 
 port map (
 	CLK   => clk_int,
+	CLK_90 => clk_int_90,
     nrst => nrst_reg,  
 
 	wrrd_ba_add => wrrd_ba_add,

@@ -13,7 +13,8 @@ USE IEEE.std_logic_textio.all;
 
 entity SDRAM_CTRL is 
 port (
-	CLK   : in  std_logic;   
+	CLK   : in  std_logic;  
+	CLK_90 : in std_logic;								-- 100MHz clock 90 degree phase shift 
     nrst : in  std_logic;
         
 	wrrd_ba_add : in std_logic_vector(2 downto 0);   -- bank address	
@@ -53,6 +54,7 @@ architecture Struct of SDRAM_CTRL is
 component SDRAM_PHYIO is 
 port (
 	CLK   : in  std_logic;
+	CLK_90 : in std_logic;								-- 100MHz clock 90 degree phase shift
     nrst : in  std_logic; 
 
 	wrrd_ba_add : in std_logic_vector(2 downto 0);
@@ -127,6 +129,7 @@ end process;
 SDRAM_PHYIOi : SDRAM_PHYIO 
 port map (
 	CLK   => CLK,
+	CLK_90 => CLK_90,
     nrst => nrst,  
 
 	wrrd_ba_add => wrrd_ba_add,

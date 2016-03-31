@@ -14,6 +14,7 @@ USE IEEE.std_logic_textio.all;
 entity SDRAM_PHYIO is 
 port (
 	CLK   : in  std_logic;   							-- 100MHz clock
+	CLK_90 : in std_logic;								-- 100MHz clock 90 degree phase shift
     nrst : in  std_logic;								-- active low reset
      
 	-- user interface
@@ -209,38 +210,66 @@ SDRAM_nWE	<= COMMAND(0);
 
 -- CK/CK# should be delayed 1/4 cycle with respect to commands and data
 
-clk_rise_reset : process (CLK, nrst)
-begin
-if (nrst = '0') then
-   clk_int_rise <= '0';
-else if (CLK'event and CLK='1') then
-   clk_int_rise <= NOT clk_int_rise;
-end if;
-end if;
-end process;
-
-clk_fall_reset : process (CLK, nrst)
-begin
-if (nrst = '0') then
-   clk_int_fall <= '0';
-else if (CLK'event and CLK='0') then
-   clk_int_fall <= clk_int_rise; 
-end if;
-end if;
-end process;
-
-clk_int_xor <= clk_int_fall XOR clk_int_rise; 
-clk_int_xor_delay <= clk_int_xor after 300 ps;       
-
+--clk_rise_reset : process (CLK, nrst)
+--begin
+--if (nrst = '0') then
+--   clk_int_rise <= '0';
+--else if (CLK'event and CLK='1') then
+--   clk_int_rise <= NOT clk_int_rise;
+--end if;
+--end if;
+--end process;
+--
+--clk_fall_reset : process (CLK, nrst)
+--begin
+--if (nrst = '0') then
+--   clk_int_fall <= '0';
+--else if (CLK'event and CLK='0') then
+--   clk_int_fall <= clk_int_rise; 
+--end if;
+--end if;
+--end process;
+--
+--clk_int_xor <= clk_int_fall XOR clk_int_rise; 
+--clk_int_xor_delay <= clk_int_xor after 300 ps;       
+--
 -- DDR clock
 OBUFDSi : OBUFDS 
   port map (
     O  => SDRAM_CK,
     OB => SDRAM_nCK,
 
-    I => NOT clk_int_xor
+    I => clk_90
     );
+
+--CK : ODDR 
+--  generic map(
+--      DDR_CLK_EDGE => "SAME_EDGE"
+--      )
+--  port map(
+--      Q           => SDRAM_CK,
+--      C           => CLK_90,
+--      CE          => '1',
+--      D1          => '0',
+--      D2          => '1',
+--      R           => '0',
+--      S           => '0'
+--    );
 	
+	
+--nCK : ODDR 
+--  generic map(
+--      DDR_CLK_EDGE => "SAME_EDGE"
+--      )
+--  port map(
+--      Q           => SDRAM_nCK,
+--      C           => CLK_90,
+--      CE          => '1',
+--      D1          => '1',
+--      D2          => '0',
+--      R           => '0',
+--      S           => '0'
+--    );
 -----------------------------------------------------
 --	PHY: SDRAM_DQ
 -----------------------------------------------------
@@ -303,10 +332,10 @@ dqs_oddrn : ODDR
       )
   port map(
       Q           => SDRAM_dqs_out_tmp(i),
-      C           => clk_int_xor_delay,		-- DQS transitions with CK/CK#
+      C           => CLK_90,
       CE          => '1',
-      D1          => '0',
-      D2          => '1',
+      D1          => '1',
+      D2          => '0',
       R           => '0',
       S           => '0'
     );
