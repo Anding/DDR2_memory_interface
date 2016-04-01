@@ -184,7 +184,8 @@ signal clk_int_rise : std_logic := '0';
 signal clk_int_fall : std_logic := '0';
 signal clk_int_xor : std_logic;
 signal command : std_logic_vector(4 downto 0);
-signal rd_dat_r : std_logic_vector(31 downto 0);	
+signal rd_dat_r : std_logic_vector(31 downto 0);
+signal dqs_out_ce : std_logic;	
 
 begin    
 
@@ -333,17 +334,30 @@ dqs_oddrn : ODDR
   port map(
       Q           => SDRAM_dqs_out_tmp(i),
       C           => CLK_90,
-      CE          => '1',
-      D1          => '1',
-      D2          => '0',
+      CE          => dqs_out_ce,
+      D1          => '1', -- '1'
+      D2          => '0', -- '0'
       R           => '0',
       S           => '0'
     );
 end generate;  
+--SDRAM_DQS <= SDRAM_dqs_out_tmp;
 
-SDRAM_DQS <= SDRAM_dqs_out_tmp when (dq_write = '1') OR					-- maybe can do this with Clock Enable?
-					    		    (dqs_write = '1') else "ZZ";   
-			 
+SDRAM_DQS <= SDRAM_dqs_out_tmp when (state = write_1 OR state = write_2 OR state = write_3 OR state = write_4 OR state = write_5) else "ZZ";   
+
+--with state select
+--	 SDRAM_DQS <= SDRAM_dqs_out_tmp when write_2,
+--				SDRAM_dqs_out_tmp when write_3,
+--				SDRAM_dqs_out_tmp when write_4,
+--				"00" when write_5,					-- postamble
+--				"ZZ" when others;
+
+with state select
+	dqs_out_ce <= '0' when write_1, 		-- preamble
+				'0'	when write_5,			-- postamble
+				'1' when others;
+						
+								 
 --SDRAM_nDQS <= "ZZ"; -- removed completely
 
 -----------------------------------------------------
