@@ -39,7 +39,7 @@ port (
 	SDRAM_CK       : out std_logic;						-- positive clock (differential pair)
 	SDRAM_nCK	   : out std_logic;						-- negative clock (differential pair)
 	SDRAM_DQ       : inout std_logic_vector(15 downto 0);  	-- bidirectional data input / output  
-	SDRAM_DQS	   : out std_logic_vector(1 downto 0);		-- bidirectional data strobe (input not currently used)
+	SDRAM_DQS	   : inout std_logic_vector(1 downto 0);	-- bidirectional data strobe (input not currently used)
 	--SDRAM_nDQS	   : out std_logic_vector(1 downto 0);	-- differential DQS not currently used
 	SDRAM_DM       : out std_logic_vector(1 downto 0);		-- data mask for write data
 	SDRAM_nCAS     : out std_logic;						-- CAS# command input
@@ -150,7 +150,7 @@ type fsm_type is (init,
 			bank_0, bank_done,  
 			active,
 			precharge_0, precharge_done,
-			read_0, read_1, read_2, read_3, read_done,
+			read_0, read_1, read_2, read_3, read_4, read_done,
 			refresh_0);
 			
 -- DDR2 SRAM commands (1Gb_DDD2.pdf, p70) 						CKE CS# RAS# CAS# WE#
@@ -186,6 +186,7 @@ signal clk_int_xor : std_logic;
 signal command : std_logic_vector(4 downto 0);
 signal rd_dat_r : std_logic_vector(31 downto 0);
 signal dqs_out_ce : std_logic;	
+signal SDRAM_DQS_reg : std_logic_vector(1 downto 0);
 
 begin    
 
@@ -299,7 +300,7 @@ SDRAM_dq_in_tmp <= SDRAM_DQ after 1 ps; -- reflect board timing "after 1 ps" is 
 dq_iddr : for i in 0 to 15 generate
 dq_iddrn : IDDR
   generic map(
-      DDR_CLK_EDGE => "OPPOSITE_EDGE",	-- possibly replace with SAME_EDGE_PIPELINE and add one cycle of latency
+      DDR_CLK_EDGE => "SAME_EDGE_PIPELINED",	-- possibly replace with SAME_EDGE_PIPELINED and add one cycle of latency, was OPPOSITE_EDGE
       INIT_Q1      => '0',
       INIT_Q2      => '0',
       IS_C_INVERTED => '0',
@@ -309,7 +310,7 @@ dq_iddrn : IDDR
   port map(
       Q1          => SDRAM_dq_in(i + 16),	-- multiplex a x16 DDR interface in to a 32 bit signal
       Q2          => SDRAM_dq_in(i),		-- Q2 is the signal received on the falling edge
-      C           => CLK,
+      C           => not CLK_90,
       CE          => '1',
       D           => SDRAM_dq_in_tmp(i),
       R           => '0',
@@ -342,7 +343,7 @@ dqs_oddrn : ODDR
 end generate;  
 --SDRAM_DQS <= SDRAM_dqs_out_tmp;
 
-SDRAM_DQS <= SDRAM_dqs_out_tmp when (dqs_write = '1') else "ZZ";   
+SDRAM_DQS <= SDRAM_dqs_out_tmp when (dqs_write = '1') else "ZZ";  
 
 --with state select
 --	 SDRAM_DQS <= SDRAM_dqs_out_tmp when write_2,
@@ -379,7 +380,7 @@ dm_oddrn : ODDR
       R           => '0',
       S           => '0'
     );
-end generate;    
+end generate; 
 
 -----------------------------------------------------
 --	Glue Logic:
@@ -392,6 +393,7 @@ process
 begin
 	wait until rising_edge(CLK);
 	rd_dat_r <= SDRAM_dq_in;			-- register data in
+	SDRAM_DQS_reg <= SDRAM_DQS;
 end process;
 
 -----------------------------------------------------
@@ -939,6 +941,12 @@ when read_2 =>											-- 2nd cycle of CAS latency
 --	Read 3
 -----------------------------------------------------
 when read_3 => 											-- 3rd cycle of CAS latency
+			COMMAND <= CMD_NOP;
+			state <= read_4;
+-----------------------------------------------------
+--	Read 3
+-----------------------------------------------------
+when read_4 => 											-- 3rd cycle of CAS latency
 			COMMAND <= CMD_NOP;
 			state <= read_done;
 -----------------------------------------------------
