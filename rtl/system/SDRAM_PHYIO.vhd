@@ -317,8 +317,7 @@ dq_iddrn : IDDR
     );
 end generate;
 
-SDRAM_DQ <= SDRAM_dq_out_tmp when (dq_write = '1') OR					-- maybe can do this with set?
-							      (dqs_write = '1') else "ZZZZZZZZZZZZZZZZ";   
+SDRAM_DQ <= SDRAM_dq_out_tmp when (dq_write = '1')  else "ZZZZZZZZZZZZZZZZ";   
 						
 -----------------------------------------------------
 --	PHY: SDRAM_DQS (single ended)
@@ -343,7 +342,7 @@ dqs_oddrn : ODDR
 end generate;  
 --SDRAM_DQS <= SDRAM_dqs_out_tmp;
 
-SDRAM_DQS <= SDRAM_dqs_out_tmp when (state = write_1 OR state = write_2 OR state = write_3 OR state = write_4 OR state = write_5) else "ZZ";   
+SDRAM_DQS <= SDRAM_dqs_out_tmp when (dqs_write = '1') else "ZZ";   
 
 --with state select
 --	 SDRAM_DQS <= SDRAM_dqs_out_tmp when write_2,
@@ -352,10 +351,10 @@ SDRAM_DQS <= SDRAM_dqs_out_tmp when (state = write_1 OR state = write_2 OR state
 --				"00" when write_5,					-- postamble
 --				"ZZ" when others;
 
-with state select
-	dqs_out_ce <= '0' when write_1, 		-- preamble
-				'0'	when write_5,			-- postamble
-				'1' when others;
+--with state select
+--	dqs_out_ce <= '0' when write_1, 		-- preamble
+--				'0'	when write_5,			-- postamble
+--				'1' when others;
 						
 								 
 --SDRAM_nDQS <= "ZZ"; -- removed completely
@@ -421,6 +420,7 @@ if (nrst='0') then
 	rd_ack <= '0';
     counter <= 0;
     bank_active <= "000";
+    dqs_out_ce <= '0';
 elsif (CLK'event and CLK='1') then
 case (state) is
 -----------------------------------------------------
@@ -777,6 +777,8 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			dqs_write <= '0';
 			dq_write <= '0';
 			dm_write <= "0000";
+			dqs_out_ce <= '0';
+			dq_write <= '0';			
 			-----------------------------------------------------
 			--	Bank handling
 			-----------------------------------------------------
@@ -804,6 +806,7 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 					--SDRAM_nWE <= '0';
 					COMMAND <= CMD_WRITE;
 					state <= write_0;
+					dqs_write <= '1';
 				else
 					--SDRAM_nWE <= '1';			
 					state <= read_0; 
@@ -863,16 +866,17 @@ when refresh_0 =>
 when write_0 => 										-- SDRAM registers WRITE command
 			--SDRAM_nCAS <= '1';							-- NOP
 			--SDRAM_nWE <= '1';
+			dq_write <= '1';
 			COMMAND <= CMD_NOP;
 			dm_write <= "1100";							-- dm MASK is inverted before output, so '1' here means write enable
 														-- dm needs to appear coincident with the data
 														-- dm is output through the DDR interface
+			dqs_out_ce <= '1';
 			state <= write_1;
 -----------------------------------------------------
 --	Write 1
 -----------------------------------------------------
 when write_1 =>
-			dq_write <= '1';							-- enable DQ strobe (1Gb_DDR2 p84)
 			dm_write <= "0011";
 			COMMAND <= CMD_NOP;
 			state <= write_2;
@@ -894,13 +898,15 @@ when write_3 =>
 -----------------------------------------------------
 when write_4 =>
 			wr_ack <= '1';
-			dq_write <= '0';							-- disable DQ strobe
+			dq_write <= '0';	
 			COMMAND <= CMD_NOP;
+			dqs_out_ce <= '0';
 			state <= write_5;
 -----------------------------------------------------
 --	Write 4
 -----------------------------------------------------
 when write_5 =>      
+			dqs_write <= '0';							-- disable DQ strobe
 			wr_ack <= '0';
 			COMMAND <= CMD_NOP;
 			state <= active;
