@@ -53,7 +53,7 @@ port (
 	wrrd_ras_add : in std_logic_vector(12 downto 0);
 	wrrd_cas_add : in std_logic_vector(8 downto 0);
 	
-	wr_we : in std_logic;
+	wr_we : in std_logic_vector(3 downto 0);
 	wr_add : in std_logic_vector(25 downto 0);
 	wr_dat : in std_logic_vector(31 downto 0);
 	wr_ack : out std_logic;
@@ -121,7 +121,7 @@ signal wrrd_ba_add : std_logic_vector(2 downto 0);
 signal wrrd_ras_add : std_logic_vector(12 downto 0);
 signal wrrd_cas_add : std_logic_vector(8 downto 0);
 
-signal wr_we : std_logic;
+signal wr_we : std_logic_vector(3 downto 0);
 signal wr_add : std_logic_vector(25 downto 0);
 signal wr_dat : std_logic_vector(31 downto 0);
 signal wr_ack : std_logic;
@@ -207,7 +207,7 @@ if (nrst_reg='0') then
 	state <= init;
 	wr_add <= conv_std_logic_vector(0, wr_add'length);
 	wr_dat <= conv_std_logic_vector(0, wr_dat'length);
-	wr_we <= '0';
+	wr_we <= "0000";
 	rd_re <= '0';
 	rd_add <= conv_std_logic_vector(0, rd_add'length);    
 	counter <= 0;            
@@ -226,13 +226,13 @@ when init =>	state <= write_0_0;
 --	write bank: 0 page: 0 add: 0 data: 5555AAAA
 -----------------------------------------------------
 when write_0_0 => 	
-				wr_we <= '1';
-				wr_dat <= x"5555AAAA";  
+				wr_we <= "1111";
+				wr_dat <= x"7755AACC";  
 				wrrd_cas_add <= conv_std_logic_vector(0, wrrd_cas_add'length);
 				state <= write_0_1;
 when write_0_1 => 
 				if (wr_ack = '1') then
-						wr_we <= '0';
+						wr_we <= "0000";
 						state <= read_0_0;
 						rd_re <= '1';
 		    	end if;
@@ -254,7 +254,7 @@ when read_0_2 =>
                	--------------------
                state <= write_1_0;
                ssdata <= rd_dat_reg;
-				if NOT (rd_dat_reg(31 downto 0) = x"5555AAAA") then
+				if NOT (rd_dat_reg(31 downto 0) = x"7755AACC") then
 				--if NOT (rd_dat_reg(31 downto 0) = x"AAAA5555") then
 	               	bug_found <= '1';
 				end if;
@@ -262,26 +262,26 @@ when read_0_2 =>
 --	write bank: 0 page: 0 add: 0 data: 0000FFFF
 -----------------------------------------------------
 when write_1_0 => 	
-				wr_we <= '1';
+				wr_we <= "1111";
 				wrrd_cas_add <= conv_std_logic_vector(0, wrrd_cas_add'length);
 				wr_dat <= x"0000FFFF";
 				state <= write_1_1;
 when write_1_1 => 
 				if (wr_ack = '1') then
-					wr_we <= '0';
+					wr_we <= "0000";
 					state <= write_1_2;
 		    	end if;        
 -----------------------------------------------------
 --	write bank: 0 page: 0 add: 1 data: 0001FFFE
 -----------------------------------------------------
 when write_1_2 => 	
-				wr_we <= '1';
+				wr_we <= "1111";
 				wrrd_cas_add <= conv_std_logic_vector(1, wrrd_cas_add'length);
 				wr_dat <= x"0001FFFE";
 				state <= write_1_3;
 when write_1_3 => 
 				if (wr_ack = '1') then
-					wr_we <= '0';
+					wr_we <= "0000";
 					state <= read_1_0;
 					rd_re <= '1';
 			   		wrrd_cas_add <= conv_std_logic_vector(0, wrrd_cas_add'length);
@@ -326,40 +326,40 @@ when read_1_5 =>
 --	write bank: 0 page: 1 add: 1 data: 0011FFEE
 -----------------------------------------------------
 when write_2_0 => 	
-				wr_we <= '1';
+				wr_we <= "1111";
 				wrrd_cas_add <= conv_std_logic_vector(1, wrrd_cas_add'length);
 				wrrd_ras_add <= "0" & x"001";
 				wr_dat <= x"0011FFEE";
 				state <= write_2_1;
 when write_2_1 => 
 				if (wr_ack = '1') then
-					wr_we <= '0';
+					wr_we <= "0000";
 					state <= write_2_2;
 		    	end if;        
 -----------------------------------------------------
 --	write bank: 0 page: 2 add: 1 data: 0021FFDE
 -----------------------------------------------------
 when write_2_2 => 	
-				wr_we <= '1';
+				wr_we <= "1111";
 				wrrd_ras_add <= "0" & x"002";
 				wr_dat <= x"0021FFDE";
 				state <= write_2_3;
 when write_2_3 => 
 				if (wr_ack = '1') then
-					wr_we <= '0';
+					wr_we <= "0000";
 					state <= write_2_4;
 		    	end if;
 -----------------------------------------------------
 --	write bank: 1 page: 2 add: 1 data: 0121FEDE
 -----------------------------------------------------
 when write_2_4 => 	
-				wr_we <= '1';
+				wr_we <= "1111";
 				wrrd_ba_add <= "001";
 				wr_dat <= x"0121FEDE";
 				state <= write_2_5;
 when write_2_5 => 
 				if (wr_ack = '1') then
-					wr_we <= '0';
+					wr_we <= "0000";
 					state <= read_2_0;
 					rd_re <= '1';
 					wrrd_ba_add <= "000";
@@ -445,7 +445,7 @@ when read_2_11 =>
 --	write bank: 3 page: 3 add: 0..255 data: 0330<cas>
 -----------------------------------------------------
 when write_3_0 => 	
-				wr_we <= '1';
+				wr_we <= "1111";
 				wrrd_ba_add <= "011";
 				wrrd_ras_add <= "0" & x"003";
 				wrrd_cas_add <= conv_std_logic_vector(counter, wrrd_cas_add'length);
@@ -454,7 +454,7 @@ when write_3_0 =>
 when write_3_1 => 
 				if (wr_ack = '1') then           
 					if (counter = 0) then
-						wr_we <= '0';
+						wr_we <= "0000";
 						state <= read_3_0;  
 						rd_re <= '1';
 						counter <= 256;
@@ -496,7 +496,7 @@ when read_3_2 =>
 --	write bank: 3 page: 3 add: 0..255 data: 0330<cas>
 -----------------------------------------------------
 when write_4_0 => 	
-				wr_we <= '1'; 
+				wr_we <= "1111"; 
 				counter_bus := conv_std_logic_vector(counter, counter_bus'length); 
 				wrrd_ba_add <= counter_bus(15 downto 13);
 				wrrd_ras_add <= counter_bus(12 downto 0);
@@ -506,7 +506,7 @@ when write_4_0 =>
 when write_4_1 => 
 				if (wr_ack = '1') then           
 					if (counter = 0) then
-						wr_we <= '0';
+						wr_we <= "0000";
 						state <= read_4_0;  
 						rd_re <= '1';
 						counter <= 32768;

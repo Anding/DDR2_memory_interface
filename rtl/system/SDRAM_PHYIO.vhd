@@ -21,7 +21,7 @@ port (
 	wrrd_ba_add : in std_logic_vector(2 downto 0);		-- bank address
 	wrrd_ras_add : in std_logic_vector(12 downto 0);	-- row address
 	wrrd_cas_add : in std_logic_vector(8 downto 0);		-- column address
-	wr_we : in std_logic;								-- set high to request write
+	wr_we : in std_logic_vector(3 downto 0);			-- set high to request write
 	wr_add : in std_logic_vector(25 downto 0);			-- NOT USED
 	wr_dat : in std_logic_vector(31 downto 0);			-- write data
 	wr_ack : out std_logic;								-- hold write request until ack goes high
@@ -276,6 +276,29 @@ OBUFDSi : OBUFDS
 --	PHY: SDRAM_DQ
 -----------------------------------------------------
 							  
+SDRAM_dq_in_tmp <= SDRAM_DQ after 1 ps; -- reflect board timing "after 1 ps" is ignored by synthesis
+
+dq_iddr : for i in 0 to 15 generate
+dq_iddrn : IDDR
+  generic map(
+      DDR_CLK_EDGE => "SAME_EDGE_PIPELINED",	-- possibly replace with SAME_EDGE_PIPELINED and add one cycle of latency, was OPPOSITE_EDGE
+      INIT_Q1      => '0',
+      INIT_Q2      => '0',
+      IS_C_INVERTED => '0',
+      IS_D_INVERTED => '0',
+      SRTYPE       => "SYNC"
+      )
+  port map(
+      Q1          => SDRAM_dq_in(i),	-- multiplex a x16 DDR interface in to a 32 bit signal
+      Q2          => SDRAM_dq_in(i + 16),		-- Q2 is the signal received on the falling edge
+      C           => not CLK_90,
+      CE          => '1',
+      D           => SDRAM_dq_in_tmp(i),
+      R           => '0',
+      S           => '0'
+    );
+end generate;
+	
 dq_oddr : for i in 0 to 15 generate				  
 dq_oddrn : ODDR 
   generic map(
@@ -293,33 +316,9 @@ dq_oddrn : ODDR
       R           => '0',
       S           => '0'
     );
-end generate;         
-
-SDRAM_dq_in_tmp <= SDRAM_DQ after 1 ps; -- reflect board timing "after 1 ps" is ignored by synthesis
-
-dq_iddr : for i in 0 to 15 generate
-dq_iddrn : IDDR
-  generic map(
-      DDR_CLK_EDGE => "SAME_EDGE_PIPELINED",	-- possibly replace with SAME_EDGE_PIPELINED and add one cycle of latency, was OPPOSITE_EDGE
-      INIT_Q1      => '0',
-      INIT_Q2      => '0',
-      IS_C_INVERTED => '0',
-      IS_D_INVERTED => '0',
-      SRTYPE       => "SYNC"
-      )
-  port map(
-      Q1          => SDRAM_dq_in(i + 16),	-- multiplex a x16 DDR interface in to a 32 bit signal
-      Q2          => SDRAM_dq_in(i),		-- Q2 is the signal received on the falling edge
-      C           => not CLK_90,
-      CE          => '1',
-      D           => SDRAM_dq_in_tmp(i),
-      R           => '0',
-      S           => '0'
-    );
-end generate;
-
-SDRAM_DQ <= SDRAM_dq_out_tmp when (dq_write = '1')  else "ZZZZZZZZZZZZZZZZ";   
-						
+end generate;    
+ 
+SDRAM_DQ <= SDRAM_dq_out_tmp when (dq_write = '1')  else "ZZZZZZZZZZZZZZZZ";   				
 -----------------------------------------------------
 --	PHY: SDRAM_DQS (single ended)
 -----------------------------------------------------
@@ -334,31 +333,15 @@ dqs_oddrn : ODDR
   port map(
       Q           => SDRAM_dqs_out_tmp(i),
       C           => CLK_90,
-      CE          => dqs_out_ce,
-      D1          => '1', -- '1'
-      D2          => '0', -- '0'
+      CE          => dq_write , --dqs_out_ce,
+      D1          => '1',
+      D2          => '0',
       R           => '0',
       S           => '0'
     );
 end generate;  
---SDRAM_DQS <= SDRAM_dqs_out_tmp;
 
 SDRAM_DQS <= SDRAM_dqs_out_tmp when (dqs_write = '1') else "ZZ";  
-
---with state select
---	 SDRAM_DQS <= SDRAM_dqs_out_tmp when write_2,
---				SDRAM_dqs_out_tmp when write_3,
---				SDRAM_dqs_out_tmp when write_4,
---				"00" when write_5,					-- postamble
---				"ZZ" when others;
-
---with state select
---	dqs_out_ce <= '0' when write_1, 		-- preamble
---				'0'	when write_5,			-- postamble
---				'1' when others;
-						
-								 
---SDRAM_nDQS <= "ZZ"; -- removed completely
 
 -----------------------------------------------------
 --	PHY: SDRAM_DM
@@ -375,8 +358,8 @@ dm_oddrn : ODDR
       Q           => SDRAM_DM(i),		-- data mask.  Assert high to mask
       C           => CLK,				
       CE          => '1',
-      D1          => NOT dm_write(i),
-      D2          => NOT dm_write(i + 2),
+      D1          => dm_write(i),
+      D2          => dm_write(i + 2),
       R           => '0',
       S           => '0'
     );
@@ -414,7 +397,7 @@ if (nrst='0') then
 	--SDRAM_CKE <= '0';
 	dq_write <= '0';
 	dqs_write <= '0';
-	dm_write <= "0000";
+	dm_write <= "1111";
 	bank_active <= conv_std_logic_vector(0, bank_active'length);
 	bank_row_active <= conv_std_logic_vector(0, bank_row_active'length); 
 	wr_ack <= '0';         
@@ -718,7 +701,7 @@ when init_mode_1_3_done =>
 			--SDRAM_CKE <= '1';
 			COMMAND <= CMD_NOP;
 			if (counter = 20) then				-- tMRD timing requirement is 2 clock cycles (p37)
-				if (wr_we = '1') then
+				if (wr_we /= "0000") then
 					state <= idle; --write_0;
 					counter <= 0;
 				end if;
@@ -738,8 +721,8 @@ when idle =>
 			rd_valid <= '0';
 			dqs_write <= '0';
 			dq_write <= '0';
-			dm_write <= "0000";              
-			if (wr_we = '1') OR
+			dm_write <= not wr_we;             
+			if (wr_we /= "0000") OR
 		 	   (rd_re = '1') then  				-- Should there be a way to get from idle to recharge directly?
 		 	   	SDRAM_BA <= wrrd_ba_add;		-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
  				SDRAM_A <= '0' & wrrd_ras_add;  -- Row address in A[12:0] (8K) - 1Gb_DDR2 p2
@@ -778,13 +761,13 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			rd_valid <= '0';
 			dqs_write <= '0';
 			dq_write <= '0';
-			dm_write <= "0000";
+			dm_write <= not wr_we;
 			dqs_out_ce <= '0';
 			dq_write <= '0';			
 			-----------------------------------------------------
 			--	Bank handling
 			-----------------------------------------------------
-			if (	(wr_we = '1') OR
+			if (	(wr_we /= "0000") OR
 			   		(rd_re = '1') ) 							   		AND
 			   	(	(NOT (bank_active = wrrd_ba_add)) OR							-- changing bank
 			   		(NOT (bank_row_active(12 downto 0) = wrrd_ras_add)) ) then		-- changing row
@@ -797,18 +780,17 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			-----------------------------------------------------
 			--	CAS handling
 			-----------------------------------------------------     
-			elsif (wr_we = '1') OR
+			elsif (wr_we /= "0000") OR
 			   	  (rd_re = '1') then
 				SDRAM_A <= "0000" & wrrd_cas_add(8 downto 0) & '0';
 												-- Column address in A[9:0] (1K) - 1Gb_DDR2 p2
 				-- MT47H64M16HR-25E is WORD addressable. wrrd_cas_add is a LONGWORD address
 	   			--SDRAM_nCAS <= '0';
 				--SDRAM_nRAS <= '1';
-				if (wr_we = '1') then
+				if (wr_we /= "0000") then
 					--SDRAM_nWE <= '0';
 					COMMAND <= CMD_WRITE;
-					state <= write_0;
-					dqs_write <= '1';
+					state <= write_1;
 				else
 					--SDRAM_nWE <= '1';			
 					state <= read_0; 
@@ -868,26 +850,31 @@ when refresh_0 =>
 when write_0 => 										-- SDRAM registers WRITE command
 			--SDRAM_nCAS <= '1';							-- NOP
 			--SDRAM_nWE <= '1';
-			dq_write <= '1';
+
 			COMMAND <= CMD_NOP;
-			dm_write <= "1100";							-- dm MASK is inverted before output, so '1' here means write enable
+			--dm_write <= "11";							-- dm MASK is inverted before output, so '1' here means write enable
 														-- dm needs to appear coincident with the data
-														-- dm is output through the DDR interface
+
 			dqs_out_ce <= '1';
 			state <= write_1;
 -----------------------------------------------------
 --	Write 1
 -----------------------------------------------------
 when write_1 =>
-			dm_write <= "0011";
+			dqs_write <= '1';
 			COMMAND <= CMD_NOP;
 			state <= write_2;
 -----------------------------------------------------
 --	Write 2
 -----------------------------------------------------
 when write_2 =>
-			dm_write <= "0000";   						-- 4n prefectch with x16 requires a second longword 
+			--dm_write <= "00";   						-- 4n prefectch with x16 requires a second longword 
 			COMMAND <= CMD_NOP;
+			dq_write <= '1';		
+			dm_write <= "1111";							-- dm is output through the DDR interface			
+			--wr_ack <= '1';
+			--dqs_out_ce <= '0';
+			--dq_write <= '0';			
 			state <= write_3;							--  however the last 32 bits are not presented by the controller
 -----------------------------------------------------
 --	Write 3
@@ -904,6 +891,7 @@ when write_4 =>
 			COMMAND <= CMD_NOP;
 			dqs_out_ce <= '0';
 			state <= write_5;
+			counter <= 0;
 -----------------------------------------------------
 --	Write 4
 -----------------------------------------------------
@@ -911,7 +899,10 @@ when write_5 =>
 			dqs_write <= '0';							-- disable DQ strobe
 			wr_ack <= '0';
 			COMMAND <= CMD_NOP;
-			state <= active;
+			counter <= counter + 1;
+			if (counter = 2) then						-- tWR Write Recovery time 15ns
+				state <= active;
+			end if;
 -----------------------------------------------------
 --	Read 0
 -----------------------------------------------------
@@ -948,7 +939,9 @@ when read_3 => 											-- 3rd cycle of CAS latency
 -----------------------------------------------------
 when read_4 => 											-- 3rd cycle of CAS latency
 			COMMAND <= CMD_NOP;
-			state <= read_done;
+			state <= active;
+			rd_valid <= '1';	
+						
 -----------------------------------------------------
 --	Read Done [CAS latency is set to 3]
 -----------------------------------------------------

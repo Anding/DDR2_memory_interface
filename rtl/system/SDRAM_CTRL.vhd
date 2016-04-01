@@ -21,7 +21,7 @@ port (
 	wrrd_ras_add : in std_logic_vector(12 downto 0);  -- row address
 	wrrd_cas_add : in std_logic_vector(8 downto 0);  -- column address
 	
-	wr_we : in std_logic;
+	wr_we : in std_logic_vector(3 downto 0);
 	wr_add : in std_logic_vector(25 downto 0);  -- not used
 	wr_dat : in std_logic_vector(31 downto 0);
 	wr_ack : out std_logic;
@@ -61,7 +61,7 @@ port (
 	wrrd_ras_add : in std_logic_vector(12 downto 0);
 	wrrd_cas_add : in std_logic_vector(8 downto 0);
 	
-	wr_we : in std_logic;
+	wr_we : in std_logic_vector(3 downto 0);
 	wr_add : in std_logic_vector(25 downto 0);
 	wr_dat : in std_logic_vector(31 downto 0);
 	wr_ack : out std_logic;
