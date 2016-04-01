@@ -43,7 +43,8 @@ component fpga_top is port(
 	clk : in std_logic;
 	nrst : in std_logic;
 	led : out std_logic_vector(1 downto 0);
-
+	sevenseg : out STD_LOGIC_VECTOR (6 downto 0);
+	anode : out STD_LOGIC_VECTOR (7 downto 0);	
 	SDRAM_A : out std_logic_vector(13 downto 0);
 	SDRAM_BA : out std_logic_vector(2 downto 0);
 	SDRAM_CKE      : out std_logic;

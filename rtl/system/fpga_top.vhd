@@ -12,6 +12,8 @@ entity fpga_top is port(
 	nrst : in std_logic;
 
 	led : out std_logic_vector(1 downto 0);
+	sevenseg : out STD_LOGIC_VECTOR (6 downto 0);
+	anode : out STD_LOGIC_VECTOR (7 downto 0);	
 
 	SDRAM_A : out std_logic_vector(13 downto 0);
 	SDRAM_BA : out std_logic_vector(2 downto 0);
@@ -31,6 +33,15 @@ entity fpga_top is port(
 end fpga_top;
 
 architecture RTL of fpga_top is
+
+component ByteHEXdisplay is
+    Port ( 
+	clk		 	: in  STD_LOGIC;
+	ssData		: in  STD_LOGIC_VECTOR (31 downto 0);
+	sevenseg 	: out  STD_LOGIC_VECTOR (6 downto 0);
+	anode 		: out  STD_LOGIC_VECTOR (7 downto 0)
+           );
+end component;
 
 component SDRAM_CTRL is 
 port (
@@ -132,6 +143,8 @@ signal counter : integer range 0 to 32768;
 signal time_cnt1 : integer range 0 to 65535;
 signal time_cnt2 : integer range 0 to 4095;
 signal led_toggle : std_logic;
+
+signal ssdata : std_logic_vector(31 downto 0);
                      
 begin
 
@@ -202,6 +215,7 @@ if (nrst_reg='0') then
 	time_cnt1 <= 0;
 	time_cnt2 <= 0;
 	led_toggle <= '0';
+	ssdata <= x"01234567";
 elsif (clk_int'event and clk_int='1') then
 case (state) is
 -----------------------------------------------------
@@ -238,8 +252,8 @@ when read_0_2 =>
 				--state <= write_4_0;
  				--counter <= 32768;
                	--------------------
-               	state <= write_1_0;
-               	--state <= read_0_2;
+               state <= write_1_0;
+               ssdata <= rd_dat_reg;
 				if NOT (rd_dat_reg(31 downto 0) = x"5555AAAA") then
 				--if NOT (rd_dat_reg(31 downto 0) = x"AAAA5555") then
 	               	bug_found <= '1';
@@ -619,6 +633,14 @@ port map (
 	SDRAM_nCS      	=> SDRAM_nCS,
 	SDRAM_nRAS     	=> SDRAM_nRAS,
 	SDRAM_nWE      	=> SDRAM_nWE);
+
+hex : ByteHEXdisplay
+Port map ( 
+	clk	=> clk_int,
+	ssData	=> ssData,
+	sevenseg => sevenseg,
+	anode => anode
+);
 
 
 end RTL;
