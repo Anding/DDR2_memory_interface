@@ -51,7 +51,7 @@ component fpga_top is port(
 	SDRAM_CK      : out std_logic;
 	SDRAM_nCK		: out std_logic;
 	SDRAM_DQ       : inout std_logic_vector(15 downto 0);     
-	SDRAM_DQS	   : out std_logic_vector(1 downto 0);
+	SDRAM_DQS	   : inout std_logic_vector(1 downto 0);
 	--SDRAM_nDQS	   : inout std_logic_vector(1 downto 0);
 	SDRAM_LDQM    : out std_logic;
 	SDRAM_UDQM    : out std_logic;
