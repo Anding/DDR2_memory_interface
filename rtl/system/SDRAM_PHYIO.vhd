@@ -174,8 +174,8 @@ signal SDRAM_dq_in : std_logic_vector(31 downto 0);
 signal SDRAM_dqs_out_tmp : std_logic_vector(1 downto 0);
 signal state : fsm_type; 
 signal counter : integer range 0 to 1000;
-signal dq_write : std_logic;
-signal dqs_write : std_logic; 
+signal dq_write, dq_write_reg : std_logic;
+signal dqs_write, dqs_write_reg : std_logic; 
 signal dm_write : std_logic_vector(3 downto 0);
 signal bank_row_active : std_logic_vector(13 downto 0);
 signal bank_active : std_logic_vector(2 downto 0);
@@ -318,7 +318,7 @@ dq_oddrn : ODDR
     );
 end generate;    
  
-SDRAM_DQ <= SDRAM_dq_out_tmp when (dq_write = '1')  else "ZZZZZZZZZZZZZZZZ";   				
+SDRAM_DQ <= SDRAM_dq_out_tmp when (dq_write_reg = '1')  else "ZZZZZZZZZZZZZZZZ";   				
 -----------------------------------------------------
 --	PHY: SDRAM_DQS (single ended)
 -----------------------------------------------------
@@ -333,7 +333,7 @@ dqs_oddrn : ODDR
   port map(
       Q           => SDRAM_dqs_out_tmp(i),
       C           => CLK_90,
-      CE          => dq_write , --dqs_out_ce,
+      CE          => dq_write_reg , --dqs_out_ce,
       D1          => '1',
       D2          => '0',
       R           => '0',
@@ -341,7 +341,7 @@ dqs_oddrn : ODDR
     );
 end generate;  
 
-SDRAM_DQS <= SDRAM_dqs_out_tmp when (dqs_write = '1') else "ZZ";  
+SDRAM_DQS <= SDRAM_dqs_out_tmp when (dqs_write_reg = '1') else "ZZ";  
 
 -----------------------------------------------------
 --	PHY: SDRAM_DM
@@ -377,6 +377,41 @@ begin
 	wait until rising_edge(CLK);
 	rd_dat_r <= SDRAM_dq_in;			-- register data in
 	SDRAM_DQS_reg <= SDRAM_DQS;
+end process;
+
+--process
+--begin
+--	wait until rising_edge(CLK);
+--	case state is 
+--		when init =>
+--			dq_write <= '0';
+--			dqs_write <= '0';
+--		when active =>
+--			if (wr_we /= "0000") then
+--				dqs_write <= '1';
+--			end if;
+--		when write_1 =>
+--			--dqs_write <= '1';
+--			dq_write <= '1';
+--		when write_2 =>
+--			--dq_write <= '0';
+--		when write_3 =>
+--			dq_write <= '0';		
+--		when write_4 =>
+--			--dq_write <= '0';
+--			dqs_write <= '0';
+--		when write_5 =>
+--			--dqs_write <= '0';
+--		when others =>
+--	end case;		
+	
+--end process;
+
+process
+begin
+	wait until rising_edge(CLK);
+		dq_write_reg <= dq_write;
+		dqs_write_reg <= dqs_write;
 end process;
 
 -----------------------------------------------------
@@ -719,8 +754,8 @@ when idle =>
 			COMMAND <= CMD_NOP;
 			wr_ack <= '0';
 			rd_valid <= '0';
-			dqs_write <= '0';
-			dq_write <= '0';
+			--dqs_write <= '0';
+			--dq_write <= '0';
 			dm_write <= not wr_we;             
 			if (wr_we /= "0000") OR
 		 	   (rd_re = '1') then  				-- Should there be a way to get from idle to recharge directly?
@@ -759,11 +794,11 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			COMMAND <= CMD_NOP;
 			wr_ack <= '0';
 			rd_valid <= '0';
-			dqs_write <= '0';
-			dq_write <= '0';
+			--dqs_write <= '0';
+			--dq_write <= '0';
 			dm_write <= not wr_we;
-			dqs_out_ce <= '0';
-			dq_write <= '0';			
+			--dqs_out_ce <= '0';
+			--dq_write <= '0';			
 			-----------------------------------------------------
 			--	Bank handling
 			-----------------------------------------------------
@@ -790,6 +825,7 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 				if (wr_we /= "0000") then
 					--SDRAM_nWE <= '0';
 					COMMAND <= CMD_WRITE;
+					dqs_write <= '1';
 					state <= write_1;
 				else
 					--SDRAM_nWE <= '1';			
@@ -847,21 +883,16 @@ when refresh_0 =>
 -----------------------------------------------------
 --	Write 0
 -----------------------------------------------------
-when write_0 => 										-- SDRAM registers WRITE command
-			--SDRAM_nCAS <= '1';							-- NOP
-			--SDRAM_nWE <= '1';
-
-			COMMAND <= CMD_NOP;
-			--dm_write <= "11";							-- dm MASK is inverted before output, so '1' here means write enable
-														-- dm needs to appear coincident with the data
-
-			dqs_out_ce <= '1';
-			state <= write_1;
+--when write_0 => 										-- SDRAM registers WRITE command
+--			--SDRAM_nCAS <= '1';							-- NOP
+--			--SDRAM_nWE <= '1';
+--			COMMAND <= CMD_NOP;
+--			state <= write_1;
 -----------------------------------------------------
 --	Write 1
 -----------------------------------------------------
 when write_1 =>
-			dqs_write <= '1';
+			dq_write <= '1';
 			COMMAND <= CMD_NOP;
 			state <= write_2;
 -----------------------------------------------------
@@ -869,34 +900,29 @@ when write_1 =>
 -----------------------------------------------------
 when write_2 =>
 			--dm_write <= "00";   						-- 4n prefectch with x16 requires a second longword 
-			COMMAND <= CMD_NOP;
-			dq_write <= '1';		
-			dm_write <= "1111";							-- dm is output through the DDR interface			
-			--wr_ack <= '1';
-			--dqs_out_ce <= '0';
-			--dq_write <= '0';			
+			COMMAND <= CMD_NOP;		
+			dm_write <= "1111";							-- dm is output through the DDR interface						
 			state <= write_3;							--  however the last 32 bits are not presented by the controller
 -----------------------------------------------------
 --	Write 3
 -----------------------------------------------------
 when write_3 =>
 			COMMAND <= CMD_NOP;
+			dq_write <= '0';
 			state <= write_4;
 -----------------------------------------------------
 --	Write 4
 -----------------------------------------------------
 when write_4 =>
-			wr_ack <= '1';
-			dq_write <= '0';	
+			wr_ack <= '1';	
 			COMMAND <= CMD_NOP;
-			dqs_out_ce <= '0';
+			dqs_write <= '0';
 			state <= write_5;
 			counter <= 0;
 -----------------------------------------------------
 --	Write 4
 -----------------------------------------------------
 when write_5 =>      
-			dqs_write <= '0';							-- disable DQ strobe
 			wr_ack <= '0';
 			COMMAND <= CMD_NOP;
 			counter <= counter + 1;
