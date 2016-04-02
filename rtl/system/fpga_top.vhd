@@ -153,9 +153,9 @@ SDRAM_ODT <= '0';
 -----------------------------------------------------
 --	clk
 -----------------------------------------------------
---clk_100_n_a7_1i: clk_100_111_a7_1
+--CLOCKMANAGER: clk_100_111_a7_1
 CLOCKMANAGER: clk_100_100_a7_1 
---clk_100_n_a7_1i: clk_100_91_a7_1    -- works with reset button
+--CLOCKMANAGER: clk_100_91_a7_1    -- works with reset button
   port map
    (-- Clock in ports
     clk_in1 => clk,
