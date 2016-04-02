@@ -150,7 +150,7 @@ type fsm_type is (init,
 			bank_0, bank_done,  
 			active,
 			precharge_0, precharge_done,
-			read_0, read_1, read_2, read_3, read_4, read_done,
+			read_0, read_1, read_2, read_3, read_4, read_5, read_done,
 			refresh_0);
 			
 -- DDR2 SRAM commands (1Gb_DDD2.pdf, p70) 						CKE CS# RAS# CAS# WE#
@@ -184,9 +184,11 @@ signal clk_int_rise : std_logic := '0';
 signal clk_int_fall : std_logic := '0';
 signal clk_int_xor : std_logic;
 signal command : std_logic_vector(4 downto 0);
-signal rd_dat_r : std_logic_vector(31 downto 0);
+signal rd_dat_r : std_logic_vector(63 downto 0);
 signal dqs_out_ce : std_logic;	
 signal SDRAM_DQS_reg : std_logic_vector(1 downto 0);
+signal wr_dat_64 : std_logic_vector(63 downto 0);
+signal wr_we_8 : std_logic_vector(7 downto 0);
 
 begin    
 
@@ -369,13 +371,14 @@ end generate;
 --	Glue Logic:
 -----------------------------------------------------
 
-SDRAM_dq_out <= wr_dat;
-rd_dat <= rd_dat_r;
+wr_dat_64 <= x"01234567" & wr_dat;
+wr_we_8 <= "0000" & wr_we;
+rd_dat <= rd_dat_r(31 downto 0);
 
 process
 begin
 	wait until rising_edge(CLK);
-	rd_dat_r <= SDRAM_dq_in;			-- register data in
+	
 	SDRAM_DQS_reg <= SDRAM_DQS;
 end process;
 
@@ -756,7 +759,8 @@ when idle =>
 			rd_valid <= '0';
 			--dqs_write <= '0';
 			--dq_write <= '0';
-			dm_write <= not wr_we;             
+			dm_write <= not wr_we;
+			SDRAM_dq_out <= wr_dat_64(31 downto 0);             
 			if (wr_we /= "0000") OR
 		 	   (rd_re = '1') then  				-- Should there be a way to get from idle to recharge directly?
 		 	   	SDRAM_BA <= wrrd_ba_add;		-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
@@ -796,7 +800,8 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			rd_valid <= '0';
 			--dqs_write <= '0';
 			--dq_write <= '0';
-			dm_write <= not wr_we;
+			dm_write <= not wr_we_8(3 downto 0);
+			SDRAM_dq_out <= wr_dat_64(31 downto 0);
 			--dqs_out_ce <= '0';
 			--dq_write <= '0';			
 			-----------------------------------------------------
@@ -901,7 +906,8 @@ when write_1 =>
 when write_2 =>
 			--dm_write <= "00";   						-- 4n prefectch with x16 requires a second longword 
 			COMMAND <= CMD_NOP;		
-			dm_write <= "1111";							-- dm is output through the DDR interface						
+			SDRAM_dq_out <= wr_dat_64(63 downto 32);
+			dm_write <= not wr_we_8(7 downto 4);							-- dm is output through the DDR interface						
 			state <= write_3;							--  however the last 32 bits are not presented by the controller
 -----------------------------------------------------
 --	Write 3
@@ -964,10 +970,15 @@ when read_3 => 											-- 3rd cycle of CAS latency
 --	Read 3
 -----------------------------------------------------
 when read_4 => 											-- 3rd cycle of CAS latency
-			COMMAND <= CMD_NOP;
-			state <= active;
-			rd_valid <= '1';	
+			COMMAND <= CMD_NOP;		
+			rd_dat_r(31 downto 0) <= SDRAM_dq_in;			-- register data in	
+			state <= read_5;
 						
+when read_5 => 											-- 3rd cycle of CAS latency
+			COMMAND <= CMD_NOP;		
+			rd_dat_r(63 downto 32) <= SDRAM_dq_in;			-- register data in
+			rd_valid <= '1';	
+			state <= active;
 -----------------------------------------------------
 --	Read Done [CAS latency is set to 3]
 -----------------------------------------------------
