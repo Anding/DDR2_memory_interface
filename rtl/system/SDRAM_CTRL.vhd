@@ -9,16 +9,18 @@ USE IEEE.std_logic_textio.all;
 
 entity SDRAM_CTRL is 
 port (
-	CLK   : in  std_logic;  
+	CLK   : in  std_logic;								-- 125MHz clock
 	CLK_130 : in std_logic;								-- 125MHz clock 130 degree phase shift 
     nrst : in  std_logic;
         
-	wrrd_ba_add : in std_logic_vector(2 downto 0);   -- bank address	
-	wrrd_ras_add : in std_logic_vector(12 downto 0);  -- row address
-	wrrd_cas_add : in std_logic_vector(8 downto 0);  -- column address
+	wrrd_ba_add : in std_logic_vector(2 downto 0);		-- bank address	
+	wrrd_ras_add : in std_logic_vector(12 downto 0);  	-- row address
+	wrrd_cas_add : in std_logic_vector(8 downto 0);  	-- column address
+														-- this is technically a 16-bit word address but SDRAM_PHY ignores the least significant bit of the column address
+														-- so the address space is effectively 32-bit word addressable
 	
 	wr_we : in std_logic_vector(3 downto 0);
-	wr_add : in std_logic_vector(25 downto 0);  -- not used
+	wr_add : in std_logic_vector(25 downto 0);  		-- not used
 	wr_dat : in std_logic_vector(31 downto 0);
 	wr_ack : out std_logic;
 
@@ -96,20 +98,20 @@ end component;
 -- The refresh period of the MT47H64M16HR-25E is 64ms, thus to comply with the specification
 -- refreshInterval * ( refreshCount [defined in SDRAM_PHYIO.vhd] + 1 ) * clock_period <= 64ms
 
--- Example refresh strategies (assuming 125MHz clock)
+-- Example refresh strategies at 125MHz (based on a 7.2us clock period including allowance)
 -- 1. Refresh the entire SDRAM once each 64ms, blocking the device for 1ms each time
--- 		constant refreshInterval : integer range 0 to 16777215 := 6400000;	
+-- 		constant refreshInterval : integer range 0 to 16777215 := 8888888;	
 -- 		constant refreshCount : integer range 0 to 8191 := 8191;
 --
 -- 2. Refresh the entire SDRAM once each 0.75ms, blocking the device for 12.5us each time
--- 		constant refreshInterval : integer range 0 to 16777215 := 75000;	
+-- 		constant refreshInterval : integer range 0 to 16777215 := 54000;	
 -- 		constant refreshCount : integer range 0 to 8191 := 95;
 --
 -- 3. Refresh the SRDRAM once each 62.5us, blocking the device for 1us each time
---		constant refreshInterval : integer range 0 to 16777215 := 6250;
+--		constant refreshInterval : integer range 0 to 16777215 := 4500;
 -- 		constant refreshCount : integer range 0 to 8191 := 7;	
 
-constant refreshInterval : integer range 0 to 16777215 := 6250;		-- number of clock cycles between each refresh request                    
+constant refreshInterval : integer range 0 to 16777215 := 4500;		-- number of clock cycles between each refresh request                    
 signal refresh_time_cnt : integer range 0 to 16777215;
 signal refresh : std_logic;
 signal ref_ack : std_logic;

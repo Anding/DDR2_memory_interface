@@ -71,8 +71,10 @@ end SDRAM_PHYIO;
 -- 1. DQS in not used in READ cycles
 -- DD2 specifications require that DQ_in is clocked into registers at the transitions of DQS_in, after DQS_in has been delayed 90 degree
 -- (relative to the clock period).  However to delay the actual DQS_in signals is not straightforward and so a workaround is currently being used.
--- DQ_in is being clocked in using an IDDR buffer driven by "not CLK_90" which has been found through trial and error to be a good enough
+-- DQ_in is being clocked in using an IDDR buffer driven by "not CLK_130" which has been found through trial and error to be a good enough
 -- approximation to DQS_in to work in simulation and in hardware on the Nexys4-DDR at the tested clock frequencies
+-- If higher clock frequencies are to be attempted then I would suggest to generate a third clock and experimenting with various phase offsets to drive DQ_in's IDDR
+-- naturally any solution arrived at with this method will only be applicable to a particular board and clock frequency!
 
 -- 2. The write postamble (WPST, p34) is (technically) violated although the Micron DDR model does not complain
 -- The use of a 130 degree phase offset as opposed to a 90 degree phase offset clock to drive DQS allows a difficult cross-clock domain signal to be avoided
