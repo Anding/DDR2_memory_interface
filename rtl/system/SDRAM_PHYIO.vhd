@@ -170,13 +170,29 @@ constant CMD_PRECHARGE			: std_logic_vector(4 downto 0) := "10010";
 constant CMD_ACTIVATE			: std_logic_vector(4 downto 0) := "10011";
 constant CMD_WRITE 				: std_logic_vector(4 downto 0) := "10100";  -- also WRITE with auto precharge
 constant CMD_READ				: std_logic_vector(4 downto 0) := "10101";	-- also READ with auto precharge
-constant CMD_NOP				: std_logic_vector(4 downto 0) := "10111";
+constant CMD_NOP				: std_logic_vector(4 downto 0) := "10111";	-- also EXIT_POWER_DOWN
 constant CMD_DESELECT			: std_logic_vector(4 downto 0) := "11111";
 constant CMD_ENTER_POWER_DOWN	: std_logic_vector(4 downto 0) := "00111";
-constant CMD_EXIT_POWER_DOWN	: std_logic_vector(4 downto 0) := "10111";
 
 -- Refresh parameter, see documentation in SDRAM_CTRL
 constant refreshCount			: integer range 0 to 8191 := 7;			-- number of REFRESH commands issued during each refresh phase, minus 1
+
+-- Timing parameters (ref. 1GB_DDR2 datasheet page numbers)
+-- ct_int			power up and stabilize clock, p87: ct > 400ns
+-- ct_precharge		tRP, precharge period, p36: (ct + 1) > 12.5ns
+-- ct_refresh		tRFC, refresh interval, p37: (ct + 2) > 127.5ns
+-- ct_RCD			tRCD, ROW to COLUMN delay, p36: (ct + 1) > 12.5ns
+-- reg_CAS, ct_CAS	tCAS, CAS latency, p77:  Allowed values of CAS are 3, 4, 5, 6, 7
+-- ct_writerec		tWR, write recovery, p37: p (ct + 1) > 15ns
+
+-- Timing parameters 100MHz
+constant ct_init				: integer range 0 to 1023 := 40;	
+constant ct_precharge			: integer range 0 to 1023 := 1;
+constant ct_refresh				: integer range 0 to 1023 := 11;
+constant ct_RCD					: integer range 0 to 1023 := 1;
+constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
+constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
+constant ct_WR					: integer range 0 to 1023 := 1;
 
 signal SDRAM_dq_out_tmp : std_logic_vector(15 downto 0);
 signal SDRAM_dq_out : std_logic_vector(31 downto 0);
@@ -184,7 +200,7 @@ signal SDRAM_dq_in_tmp : std_logic_vector(15 downto 0);
 signal SDRAM_dq_in : std_logic_vector(31 downto 0);
 signal SDRAM_dqs_out_tmp : std_logic_vector(1 downto 0);
 signal state : fsm_type; 
-signal counter : integer range 0 to 1000;
+signal counter : integer range 0 to 1023;
 signal dq_write, dq_write_reg : std_logic;
 signal dqs_write, dqs_write_reg : std_logic; 
 signal dm_write : std_logic_vector(3 downto 0);
@@ -349,7 +365,7 @@ end process;
 gen_fsm : process (CLK, nrst)
 variable bank : integer range 0 to 3;
 begin
-if (nrst='0') then
+if (nrst='0') then									-- reset state should be held for 200us MIN
 	state <= init;
 	SDRAM_A <= conv_std_logic_vector(0, SDRAM_A'length);
 	SDRAM_BA <= "000";
@@ -374,13 +390,13 @@ case (state) is
 --	set nCS
 -----------------------------------------------------
 when init =>	
-			if (counter = 10) then
+			if (counter = ct_init) then
 				state <= init_precharge;
 				counter <= 0;
 			else
 				counter <= counter + 1;
 			end if;
-			COMMAND <= CMD_EXIT_POWER_DOWN;
+			COMMAND <= CMD_NOP;
 			wr_ack <= '0';
 -----------------------------------------------------
 --	initial precharge all command (1Gb_DDR2 p87)
@@ -389,12 +405,14 @@ when init_precharge =>
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00010000000000";		-- A10 high indicates an all bank precharge command
 			COMMAND <= CMD_PRECHARGE;
+			counter <= 0;			
 			state <= init_precharge_done;
-when init_precharge_done =>						-- NOP command	
+
+when init_precharge_done =>
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00010000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 4) then				-- tRPA (precharge all) timing requirement = 12.5ns (p36)
+			if (counter = ct_precharge) then	
 				state <= init_mode_2;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -409,12 +427,14 @@ when init_mode_2 =>
 												-- E7 '0' = 1x refresh rate (0C to 85C)
 												-- all other bits must be zero (1GB_DDR p85)
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;			
 			state <= init_mode_2_done;
+
 when init_mode_2_done =>						-- NOP command	
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 2) then				-- tMRD timing requirement is 2 clock cycles (p37)
+			if (counter = 1) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_3;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -427,12 +447,14 @@ when init_mode_3 =>
 			SDRAM_BA <= "011";					-- Extended Mode Register (EMR) 3
 			SDRAM_A <= "00000000000000";		-- See 1GB_DDR2 p86  for register definition		
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;
 			state <= init_mode_3_done;
+			
 when init_mode_3_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 2) then				-- tMRD timing requirement is 2 clock cycles (p37)
+			if (counter = 1) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_1;
 				counter <= 0;
 			else
@@ -443,16 +465,17 @@ when init_mode_3_done =>
 -----------------------------------------------------   
 when init_mode_1 =>								
 			SDRAM_BA <= "001";					-- Extended Mode Register (EMR) 1	
-			SDRAM_A <= "00010000000100";		-- DQS# disable	/ RTT = 75 Ohms
---					   "00010001000100"			-- DQS# disable / RTT = 50 Ohms 		
+			SDRAM_A <= "00010000000100";		-- DQS# disable	/ RTT = 75 Ohms	
 												-- See 1GB_DDR p81 for register definition 										
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;
 			state <= init_mode_1_done;
+			
 when init_mode_1_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 2) then				-- tMRD timing requirement is 2 clock cycles (p37)
+			if (counter = 1) then				-- tMRD timing requirement is 2 clock cycles (p37)
 				state <= init_mode_0;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -462,16 +485,17 @@ when init_mode_1_done =>
 --	init_mode 0 Register
 -----------------------------------------------------   
 when init_mode_0 =>
-			SDRAM_BA <= "000";					-- Mode register
-			SDRAM_A <= "00010100110010";		-- Burst length = 4 / CAS latency = 3 / Reset DLL / Write recovery = 3
-												-- Write recovery time = 15ns
+			SDRAM_BA <= "000";							-- Mode register
+			SDRAM_A <= "0001010" & reg_CAS & "0010";	-- Burst length = 4 / Reset DLL / Write recovery = 3
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;
 			state <= init_mode_0_done;
+			
 when init_mode_0_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 250) then				-- 200 cycles of clock until READ/WRITE are required following DLL reset
+			if (counter = 199) then				-- 200 cycles of clock until READ/WRITE are required following DLL reset
 				state <= init_precharge_0;		-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -484,12 +508,14 @@ when init_precharge_0 =>						-- another init precharge command
 			SDRAM_BA <= "000";	
  			SDRAM_A <= "00010000000000";
 			COMMAND <= CMD_PRECHARGE;
+			counter <= 0;
 			state <= init_precharge_0_done;
+			
 when init_precharge_0_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 2) then				-- tRPA (precharge all) timing requirement = 12.5ns (p36)
+			if (counter = ct_precharge) then	-- tRPA (precharge all) timing requirement = 12.5ns (p36)
 				state <= init_refresh_0;		-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -502,12 +528,14 @@ when init_refresh_0 =>
 			SDRAM_BA <= "000";					-- REFRESH command
  			SDRAM_A <= "00010000000000";		-- A10 actually has no effect
 			COMMAND <= CMD_REFRESH;
+			counter <= 0;
 			state <= init_refresh_0_done;
+			
 when init_refresh_0_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 26) then				-- tRFC (REFRESH interval) = 127.5ns (p37)
+			if (counter = ct_refresh) then		-- tRFC (REFRESH interval) = 127.5ns (p37)
 				state <= init_refresh_1;		-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -520,12 +548,14 @@ when init_refresh_1 =>							-- two or more refresh commands are required (note 
 			SDRAM_BA <= "000";	
  			SDRAM_A <= "00010000000000";
 			COMMAND <= CMD_REFRESH;
+			counter <= 0;
 			state <= init_refresh_1_done;
+			
 when init_refresh_1_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			if (counter = 26) then
+			if (counter = ct_refresh) then
 				state <= init_mode_0_2;			-- follow prescribed init sequence (1Gb_DDR2 p87)
 				counter <= 0;
 			else
@@ -535,11 +565,12 @@ when init_refresh_1_done =>
 --	init_mode 0 Register 2nd
 -----------------------------------------------------   
 when init_mode_0_2 =>
-			SDRAM_BA <= "000";					-- Mode register
- 			SDRAM_A <= "00010000110010";		--same settings EXCEPT do not reset the DLL
---				   (cf."00010100110010" first time)
+			SDRAM_BA <= "000";							-- Mode register
+ 			SDRAM_A <= "0001000"  & reg_CAS & "0010";	--same settings EXCEPT do not reset the DLL
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;
 			state <= init_mode_0_2_done;
+			
 when init_mode_0_2_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
@@ -556,10 +587,11 @@ when init_mode_0_2_done =>
 when init_mode_1_2 =>
 			SDRAM_BA <= "001";					-- EMR 1
  			SDRAM_A <= "00011110000100";		-- Default OCD / DQS# disable / RTT = 75 Ohm
---					   "00011111000100"			-- Default OCD / DQS# disable / RTT = 50 Ohm
 												-- See 1GB_DDR p81 for register definition 
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;
 			state <= init_mode_1_2_done;
+			
 when init_mode_1_2_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
@@ -578,7 +610,9 @@ when init_mode_1_3 =>
  			SDRAM_A <= "00010000000100";		-- Exit OCD / DQS# disable / RTT = 75 Ohm
 --                     "00010001000100"			-- Exit OCD / DQS# disable / RTT = 75 Ohm
 			COMMAND <= CMD_LOAD_MODE;
+			counter <= 0;
 			state <= init_mode_1_3_done;
+			
 when init_mode_1_3_done =>			
 			SDRAM_BA <= "000";	
 			SDRAM_A <= "00000000000000";
@@ -599,15 +633,16 @@ when idle =>
 			wr_ack <= '0';
 			rd_valid <= '0';
 			dm_write <= not wr_we;
-			SDRAM_dq_out <= wr_dat_64(31 downto 0);    
+			SDRAM_dq_out <= wr_dat_64(31 downto 0);  
+			counter <= 0;
 			
 			if refresh = '1' then
 				state <= refresh_0;
 			         
 			elsif (wr_we /= "0000") OR
 		 	   (rd_re = '1') then 
-		 	   	SDRAM_BA <= wrrd_ba_add;		-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
- 				SDRAM_A <= '0' & wrrd_ras_add;  -- Row address in A[12:0] (8K) - 1Gb_DDR2 p2 
+		 	   	SDRAM_BA <= wrrd_ba_add;				-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
+ 				SDRAM_A <= '0' & wrrd_ras_add;  		-- Row address in A[12:0] (8K) - 1Gb_DDR2 p2 
 				COMMAND <= CMD_ACTIVATE;
 				state <= bank_0;
 				bank_active <= wrrd_ba_add; 			-- save the activating bank (to detect a change)
@@ -619,13 +654,19 @@ when idle =>
 -----------------------------------------------------
 when bank_0 => 									-- first state after activating a bank
 			COMMAND <= CMD_NOP;
-	   		state <= bank_done;
+			if (counter = ct_RCD) then
+				state <= active;
+				counter <= 0;
+			else
+				counter <= counter + 1;
+			end if;	
+
 -----------------------------------------------------
 --	Bank Active Done
 -----------------------------------------------------
-when bank_done =>
-			COMMAND <= CMD_NOP;
-			state <= active;  					-- tRCD (ROW to COLUMN delay) = 12.5 ns
+--when bank_done =>
+--			COMMAND <= CMD_NOP;
+--			state <= active;  					-- tRCD (ROW to COLUMN delay) = 12.5 ns
 -----------------------------------------------------
 --	Active
 -----------------------------------------------------
@@ -635,7 +676,8 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			rd_valid <= '0';
 			dm_write <= not wr_we_8(3 downto 0);
 			SDRAM_dq_out <= wr_dat_64(31 downto 0);			
-		
+			counter <= 0;
+			
 			-----------------------------------------------------
 			--	Refresh handling
 			-----------------------------------------------------  
@@ -681,7 +723,7 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 when precharge_0 => 				-- tRPA (precharge all) timing requirement = 12.5ns (p36) 
 			COMMAND <= CMD_NOP;
 			counter <= counter + 1;
-			if (counter = 0) then			
+			if (counter = ct_precharge) then			
 				counter <= 0;			
 				if (refresh = '1') then
 					state <= refresh_0;
@@ -692,16 +734,16 @@ when precharge_0 => 				-- tRPA (precharge all) timing requirement = 12.5ns (p36
 -----------------------------------------------------
 --	Precharge All Done
 -----------------------------------------------------
-when precharge_done =>
-			COMMAND <= CMD_NOP;
-			counter <= counter + 1;
-			if (counter = 0) then						
-				if (refresh = '1') then
-					state <= refresh_0;
-				else
-					state <= idle; 	
-				end if;					
-			end if;
+--when precharge_done =>
+--			COMMAND <= CMD_NOP;
+--			counter <= counter + 1;
+--			if (counter = 0) then						
+--				if (refresh = '1') then
+--					state <= refresh_0;
+--				else
+--					state <= idle; 	
+--				end if;					
+--			end if;
 -----------------------------------------------------
 --	Refresh All Delay
 -----------------------------------------------------
@@ -715,7 +757,7 @@ when refresh_1 =>
 			COMMAND <= CMD_NOP;
 			ref_ack <= '0';
 			counter <= counter + 1;
-			if (counter = 12) then						-- tRFC = refresh-to-refresh (or refresh-to-activate) = 127.5 ns
+			if (counter = ct_refresh) then					-- tRFC = refresh-to-refresh (or refresh-to-activate) = 127.5 ns
 				counterRefresh <= counterRefresh + 1;
 				if counterRefresh = refreshCount then
 					counterRefresh <= 0;
@@ -736,7 +778,13 @@ when refresh_1 =>
 when write_1 =>
 			dq_write <= '1';
 			COMMAND <= CMD_NOP;
-			state <= write_2;
+			if (counter = ct_CAS) then
+				state <= write_2;
+				counter <= 0;
+			else
+				counter <= counter + 1;
+			end if;	
+			
 -----------------------------------------------------
 --	Write 2
 -----------------------------------------------------
@@ -768,58 +816,62 @@ when write_5 =>
 			wr_ack <= '0';
 			COMMAND <= CMD_NOP;
 			counter <= counter + 1;
-			if (counter = 2) then						-- tWR Write Recovery time 15ns
+			if (counter = ct_writerec) then						-- tWR Write Recovery time 15ns
 				state <= active;
 			end if;
 -----------------------------------------------------
 --	Read 0
 -----------------------------------------------------
 when read_0 =>											-- SDRAM registers READ command
-			SDRAM_BA <= wrrd_ba_add;
-			SDRAM_A <= "00000000000000";				-- NOP (active bank commands, p 71)
+			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;
-			state <= read_1;
+			if (counter = ct_CAS) then
+				state <= read_1;
+				counter <= 0;
+			else
+				counter <= counter + 1;
+			end if;				
 			rd_ack <= '0';
 -----------------------------------------------------
 --	Read 1
 -----------------------------------------------------
-when read_1 => 											-- 1st cycle of CAS latency
+when read_1 => 											
 			COMMAND <= CMD_NOP;
 			state <= read_2; 
 -----------------------------------------------------
 --	Read 2
 -----------------------------------------------------
-when read_2 =>											-- 2nd cycle of CAS latency
+when read_2 =>											
 			COMMAND <= CMD_NOP;
 			state <= read_3; 
 -----------------------------------------------------
 --	Read 3
 -----------------------------------------------------
-when read_3 => 											-- 3rd cycle of CAS latency
+when read_3 => 											
 			COMMAND <= CMD_NOP;
 			state <= read_4;
 -----------------------------------------------------
 --	Read 3
 -----------------------------------------------------
-when read_4 => 											-- 3rd cycle of CAS latency
+when read_4 =>
 			COMMAND <= CMD_NOP;		
-			rd_dat_r(31 downto 0) <= SDRAM_dq_in;			-- register data in	
+			rd_dat_r(31 downto 0) <= SDRAM_dq_in;			-- register data in	- low word of burst
 			state <= read_5;
 						
-when read_5 => 											-- 3rd cycle of CAS latency
+when read_5 => 
 			COMMAND <= CMD_NOP;		
-			rd_dat_r(63 downto 32) <= SDRAM_dq_in;			-- register data in
+			rd_dat_r(63 downto 32) <= SDRAM_dq_in;			-- register data in - high word of burst
 			rd_valid <= '1';	
 			state <= active;
 -----------------------------------------------------
---	Read Done [CAS latency is set to 3]
+--	Read Done
 -----------------------------------------------------
-when read_done => 										-- IDDR buffer has registered signal at the output
-			COMMAND <= CMD_NOP;
-			rd_valid <= '1';							-- "rd_dat <= SDRAM_dq_in" is made as a concurrent statement and rd_dat is not registered
- 			state <= active;							-- keep ROW open and return to ACTIVE state (next access likely on same row)							
-														-- 4n prefetch with x16 yields a 64 bit word, the latter 32 bits currently ignored
-			
+--when read_done => 										-- IDDR buffer has registered signal at the output
+--			COMMAND <= CMD_NOP;
+--			rd_valid <= '1';							-- "rd_dat <= SDRAM_dq_in" is made as a concurrent statement and rd_dat is not registered
+-- 			state <= active;							-- keep ROW open and return to ACTIVE state (next access likely on same row)							
+--														-- 4n prefetch with x16 yields a 64 bit word, the latter 32 bits currently ignored
+--			
 -----------------------------------------------------
 --	Others
 -----------------------------------------------------
