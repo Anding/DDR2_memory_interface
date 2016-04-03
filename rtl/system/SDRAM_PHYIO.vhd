@@ -599,8 +599,12 @@ when idle =>
 			wr_ack <= '0';
 			rd_valid <= '0';
 			dm_write <= not wr_we;
-			SDRAM_dq_out <= wr_dat_64(31 downto 0);             
-			if (wr_we /= "0000") OR
+			SDRAM_dq_out <= wr_dat_64(31 downto 0);    
+			
+			if refresh = '1' then
+				state <= refresh_0;
+			         
+			elsif (wr_we /= "0000") OR
 		 	   (rd_re = '1') then 
 		 	   	SDRAM_BA <= wrrd_ba_add;		-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
  				SDRAM_A <= '0' & wrrd_ras_add;  -- Row address in A[12:0] (8K) - 1Gb_DDR2 p2 
@@ -609,7 +613,6 @@ when idle =>
 				bank_active <= wrrd_ba_add; 			-- save the activating bank (to detect a change)
 				bank_row_active <= '0' & wrrd_ras_add;  -- save the activating row (to detect a change)
 														-- ACTIVE to PRECHARGE delay tRAS = 70us MAX (p36) : has this been considered?
-			-- need a way to access refresh from idle
 		 	end if;
 -----------------------------------------------------
 --	Bank Active
@@ -632,16 +635,26 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			rd_valid <= '0';
 			dm_write <= not wr_we_8(3 downto 0);
 			SDRAM_dq_out <= wr_dat_64(31 downto 0);			
+		
+			-----------------------------------------------------
+			--	Refresh handling
+			-----------------------------------------------------  
+			if  (refresh = '1') then
+				SDRAM_A <= "00000000000000";	-- PRECHARGE    
+				COMMAND <= CMD_PRECHARGE;
+				state <= precharge_0;	
+				
 			-----------------------------------------------------
 			--	Bank handling
 			-----------------------------------------------------
-			if (	(wr_we /= "0000") OR
+			elsif(	(wr_we /= "0000") OR			
 			   		(rd_re = '1') ) 							   		AND
 			   	(	(NOT (bank_active = wrrd_ba_add)) OR							-- changing bank
 			   		(NOT (bank_row_active(12 downto 0) = wrrd_ras_add)) ) then		-- changing row
 				SDRAM_A <= "00000000000000";        
 				COMMAND <= CMD_PRECHARGE;
 				state <= precharge_0;
+				
 			-----------------------------------------------------
 			--	CAS handling
 			-----------------------------------------------------     
@@ -659,13 +672,8 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 					COMMAND <= CMD_READ;
 					rd_ack <= '1';
 				end if;
-			-----------------------------------------------------
-			--	Refresh handling
-			-----------------------------------------------------  
-			elsif (refresh = '1') then
-				SDRAM_A <= "00000000000000";	-- PRECHARGE    
-				COMMAND <= CMD_PRECHARGE;
-				state <= precharge_0;				
+
+			
 		 	end if;
 -----------------------------------------------------
 --	Precharge All Delay
