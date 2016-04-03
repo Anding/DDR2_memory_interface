@@ -180,19 +180,28 @@ constant refreshCount			: integer range 0 to 8191 := 7;			-- number of REFRESH c
 -- Timing parameters (ref. 1GB_DDR2 datasheet page numbers)
 -- ct_int			power up and stabilize clock, p87: ct > 400ns
 -- ct_precharge		tRP, precharge period, p36: (ct + 1) > 12.5ns
--- ct_refresh		tRFC, refresh interval, p37: (ct + 2) > 127.5ns
+-- ct_refresh		tRFC, refresh interval, p37: (ct + 1) > 127.5ns
 -- ct_RCD			tRCD, ROW to COLUMN delay, p36: (ct + 1) > 12.5ns
--- reg_CAS, ct_CAS	tCAS, CAS latency, p77:  Allowed values of CAS are 3, 4, 5, 6, 7
 -- ct_writerec		tWR, write recovery, p37: p (ct + 1) > 15ns
+-- reg_CAS, ct_CAS	tCAS, CAS latency, pp32, 77:  Allowed values of CAS are 3, 4, 5, 6, 7
 
--- Timing parameters 100MHz
-constant ct_init				: integer range 0 to 1023 := 40;	
-constant ct_precharge			: integer range 0 to 1023 := 1;
-constant ct_refresh				: integer range 0 to 1023 := 11;
+-- Timing parameters at 100MHz (based on a 9us clock period including allowance)
+--constant ct_init				: integer range 0 to 1023 := 45;	
+--constant ct_precharge			: integer range 0 to 1023 := 1;
+--constant ct_refresh				: integer range 0 to 1023 := 14;
+--constant ct_RCD					: integer range 0 to 1023 := 1;
+--constant ct_WR					: integer range 0 to 1023 := 1;
+--constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
+--constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
+
+-- Timing parameters at 125MHz (based on a 7.2us clock period including allowance)
+constant ct_init				: integer range 0 to 1023 := 56;	
+constant ct_precharge			: integer range 0 to 1023 := 2;
+constant ct_refresh				: integer range 0 to 1023 := 17;
 constant ct_RCD					: integer range 0 to 1023 := 1;
+constant ct_WR					: integer range 0 to 1023 := 2;
 constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
 constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
-constant ct_WR					: integer range 0 to 1023 := 1;
 
 signal SDRAM_dq_out_tmp : std_logic_vector(15 downto 0);
 signal SDRAM_dq_out : std_logic_vector(31 downto 0);
@@ -816,7 +825,7 @@ when write_5 =>
 			wr_ack <= '0';
 			COMMAND <= CMD_NOP;
 			counter <= counter + 1;
-			if (counter = ct_writerec) then						-- tWR Write Recovery time 15ns
+			if (counter = ct_WR) then						-- tWR Write Recovery time 15ns
 				state <= active;
 			end if;
 -----------------------------------------------------

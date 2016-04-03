@@ -80,29 +80,13 @@ port (
 
 end component;
 
-component clk_100_111_a7_1
+component clk_manager
   Port ( 
     clk_in1 : in STD_LOGIC;
     clk_out1 : out STD_LOGIC;
     clk_out2 : out STD_LOGIC   
   ); 
 end component;  
-
-component clk_100_100_a7_1
-  Port ( 
-    clk_in1 : in STD_LOGIC;
-    clk_out1 : out STD_LOGIC;
-    clk_out2 : out STD_LOGIC 
-  ); 
-end component;  
-
-component clk_100_91_a7_1
-  Port ( 
-    clk_in1 : in STD_LOGIC;
-    clk_out1 : out STD_LOGIC;
-    clk_out2 : out STD_LOGIC 
-  ); 
-end component;
 
 type fsm_type is (init,
 			write_0_0, write_0_1, 
@@ -153,16 +137,15 @@ SDRAM_ODT <= '0';
 -----------------------------------------------------
 --	clk
 -----------------------------------------------------
---CLOCKMANAGER: clk_100_111_a7_1
-CLOCKMANAGER: clk_100_100_a7_1 
---CLOCKMANAGER: clk_100_91_a7_1    -- works with reset button
+CLOCKMANAGER: clk_manager
+
+
   port map
    (-- Clock in ports
     clk_in1 => clk,
     clk_out1 => clk_int,
     clk_out2 => clk_int_90);
     
---clk_int <= clk;
 
 ----------------------------------------------
 -- nrst_reg
