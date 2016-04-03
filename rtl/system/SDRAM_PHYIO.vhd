@@ -27,6 +27,7 @@ port (
 	rd_ack : out std_logic;   							-- hold read request until rd_ack goes high
 	rd_valid : out std_logic;							-- accept read rd_dat during the same cycle that rd_valid is high
 	refresh : in std_logic;								-- cycle refresh high to allow periodic SDRAM refresh (driven by SDRAM_CTRL)
+	ref_ack	: out std_logic;							-- hold refresh request until ref_ack goes high
 
 	-- DDR2 SDRAM interface (MT47H64M16HR-25E)
 	SDRAM_A : out std_logic_vector(13 downto 0);		-- address inputs: should be (12 downto 0), no A[13] in 16x 
@@ -158,7 +159,7 @@ type fsm_type is (init,
 			active,
 			precharge_0, precharge_done,
 			read_0, read_1, read_2, read_3, read_4, read_5, read_done,
-			refresh_0);
+			refresh_0, refresh_1);
 			
 -- DDR2 SRAM commands (1Gb_DDD2.pdf, p70) 						values of CKE CS# RAS# CAS# WE#
 constant CMD_LOAD_MODE			: std_logic_vector(4 downto 0) := "10000";
@@ -173,6 +174,9 @@ constant CMD_NOP				: std_logic_vector(4 downto 0) := "10111";
 constant CMD_DESELECT			: std_logic_vector(4 downto 0) := "11111";
 constant CMD_ENTER_POWER_DOWN	: std_logic_vector(4 downto 0) := "00111";
 constant CMD_EXIT_POWER_DOWN	: std_logic_vector(4 downto 0) := "10111";
+
+-- Refresh parameter, see documentation in SDRAM_CTRL
+constant refreshCount			: integer range 0 to 8191 := 7;			-- number of REFRESH commands issued during each refresh phase, minus 1
 
 signal SDRAM_dq_out_tmp : std_logic_vector(15 downto 0);
 signal SDRAM_dq_out : std_logic_vector(31 downto 0);
@@ -196,8 +200,9 @@ signal dqs_out_ce : std_logic;
 signal SDRAM_DQS_reg : std_logic_vector(1 downto 0);
 signal wr_dat_64 : std_logic_vector(63 downto 0);
 signal wr_we_8 : std_logic_vector(7 downto 0);
+signal counterRefresh : integer range 0 to 8191;  
 
-begin    
+begin
 
 -----------------------------------------------------
 --	PHY: SDRAM commands
@@ -349,7 +354,6 @@ if (nrst='0') then
 	SDRAM_A <= conv_std_logic_vector(0, SDRAM_A'length);
 	SDRAM_BA <= "000";
 	COMMAND <= CMD_ENTER_POWER_DOWN;
-
 	dq_write <= '0';
 	dqs_write <= '0';
 	dm_write <= "1111";
@@ -361,6 +365,9 @@ if (nrst='0') then
     counter <= 0;
     bank_active <= "000";
     dqs_out_ce <= '0';
+    ref_ack <= '0';
+    counterRefresh <= 0;
+    
 elsif (CLK'event and CLK='1') then
 case (state) is
 -----------------------------------------------------
@@ -594,7 +601,7 @@ when idle =>
 			dm_write <= not wr_we;
 			SDRAM_dq_out <= wr_dat_64(31 downto 0);             
 			if (wr_we /= "0000") OR
-		 	   (rd_re = '1') then  				-- Should there be a way to get from idle to recharge directly?
+		 	   (rd_re = '1') then 
 		 	   	SDRAM_BA <= wrrd_ba_add;		-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
  				SDRAM_A <= '0' & wrrd_ras_add;  -- Row address in A[12:0] (8K) - 1Gb_DDR2 p2 
 				COMMAND <= CMD_ACTIVATE;
@@ -602,6 +609,7 @@ when idle =>
 				bank_active <= wrrd_ba_add; 			-- save the activating bank (to detect a change)
 				bank_row_active <= '0' & wrrd_ras_add;  -- save the activating row (to detect a change)
 														-- ACTIVE to PRECHARGE delay tRAS = 70us MAX (p36) : has this been considered?
+			-- need a way to access refresh from idle
 		 	end if;
 -----------------------------------------------------
 --	Bank Active
@@ -664,30 +672,49 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 -----------------------------------------------------
 when precharge_0 => 				-- tRPA (precharge all) timing requirement = 12.5ns (p36) 
 			COMMAND <= CMD_NOP;
-	   		state <= precharge_done; 
-	   		counter <= 0;
+			counter <= counter + 1;
+			if (counter = 0) then			
+				counter <= 0;			
+				if (refresh = '1') then
+					state <= refresh_0;
+				else
+					state <= idle; 	
+				end if;					
+			end if;
 -----------------------------------------------------
 --	Precharge All Done
 -----------------------------------------------------
 when precharge_done =>
-			if (refresh = '1') then
-				if (counter = 20) then
-					COMMAND <= CMD_REFRESH;
+			COMMAND <= CMD_NOP;
+			counter <= counter + 1;
+			if (counter = 0) then						
+				if (refresh = '1') then
 					state <= refresh_0;
 				else
-					COMMAND <= CMD_NOP;
-					counter <= counter + 1;
+					state <= idle; 	
 				end if;					
-			else
-				state <= idle;  
 			end if;
 -----------------------------------------------------
 --	Refresh All Delay
 -----------------------------------------------------
 when refresh_0 => 											
+			COMMAND <= CMD_REFRESH;
+			ref_ack <= '1';
+			state <= refresh_1;	
+			counter <= 0;	
+			
+when refresh_1 =>
 			COMMAND <= CMD_NOP;
-			if (refresh = '0') then
-				state <= idle;  
+			ref_ack <= '0';
+			counter <= counter + 1;
+			if (counter = 12) then						-- tRFC = refresh-to-refresh (or refresh-to-activate) = 127.5 ns
+				counterRefresh <= counterRefresh + 1;
+				if counterRefresh = refreshCount then
+					counterRefresh <= 0;
+					state <= idle;
+				else
+					state <= refresh_0;				
+				end if;
 			end if;
 -----------------------------------------------------
 --	Write 0
