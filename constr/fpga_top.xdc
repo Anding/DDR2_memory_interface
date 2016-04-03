@@ -12,8 +12,6 @@ set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
 
 #	create_clock -add -name CLK_IN -period 10.00 -waveform {0 5} [get_ports CLK_IN]
 #create_clock -period 10.000 -name clk -waveform {0.000 5.000} [get_ports clk]
-
-#set_false_path -from clk_out1_clk_manager -to clk_out2_clk_manager
                                                                     
 #7 segment display
 #Bank = 34, Pin name = IO_L2N_T0_34,						Sch name = CA

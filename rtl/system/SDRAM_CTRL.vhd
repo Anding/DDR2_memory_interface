@@ -10,7 +10,7 @@ USE IEEE.std_logic_textio.all;
 entity SDRAM_CTRL is 
 port (
 	CLK   : in  std_logic;  
-	CLK_90 : in std_logic;								-- 100MHz clock 90 degree phase shift 
+	CLK_130 : in std_logic;								-- 125MHz clock 130 degree phase shift 
     nrst : in  std_logic;
         
 	wrrd_ba_add : in std_logic_vector(2 downto 0);   -- bank address	
@@ -50,7 +50,7 @@ architecture Struct of SDRAM_CTRL is
 component SDRAM_PHYIO is 
 port (
 	CLK   : in  std_logic;
-	CLK_90 : in std_logic;
+	CLK_130 : in std_logic;
     nrst : in  std_logic; 
 
 	wrrd_ba_add : in std_logic_vector(2 downto 0);
@@ -96,7 +96,7 @@ end component;
 -- The refresh period of the MT47H64M16HR-25E is 64ms, thus to comply with the specification
 -- refreshInterval * ( refreshCount [defined in SDRAM_PHYIO.vhd] + 1 ) * clock_period <= 64ms
 
--- Example refresh strategies (assuming 100MHz clock)
+-- Example refresh strategies (assuming 125MHz clock)
 -- 1. Refresh the entire SDRAM once each 64ms, blocking the device for 1ms each time
 -- 		constant refreshInterval : integer range 0 to 16777215 := 6400000;	
 -- 		constant refreshCount : integer range 0 to 8191 := 8191;
@@ -125,7 +125,7 @@ begin
 	if (nrst='0') then
 		refresh_time_cnt <= 0;
 		refresh <= '0';
-	elsif (CLK'event and CLK='0') then	
+	elsif (CLK'event and CLK='1') then	
 		-- free running timer/counter
 		if (refresh_time_cnt = refreshInterval) then       
 			refresh_time_cnt <= 0;
@@ -145,7 +145,7 @@ end process;
 SDRAM_PHYIOi : SDRAM_PHYIO 
 port map (
 	CLK   => CLK,
-	CLK_90 => CLK_90,
+	CLK_130 => CLK_130,
     nrst => nrst,  
 
 	wrrd_ba_add => wrrd_ba_add,

@@ -46,7 +46,7 @@ end component;
 component SDRAM_CTRL is 
 port (
 	CLK   : in  std_logic;
-	CLK_90 : in std_logic;
+	CLK_130 : in std_logic;
     nrst : in  std_logic; 
 
 	wrrd_ba_add : in std_logic_vector(2 downto 0);
@@ -119,7 +119,7 @@ signal bug_found : std_logic;
 
 signal SDRAM_DM : std_logic_vector(1 downto 0);
 signal clk_int : std_logic;
-signal clk_int_90 : std_logic;
+signal clk_int_130 : std_logic;
 signal nrst_reg : std_logic;
 signal state : fsm_type; 
 signal counter : integer range 0 to 32768;
@@ -144,7 +144,7 @@ CLOCKMANAGER: clk_manager
    (-- Clock in ports
     clk_in1 => clk,
     clk_out1 => clk_int,
-    clk_out2 => clk_int_90);
+    clk_out2 => clk_int_130);
     
 
 ----------------------------------------------
@@ -586,7 +586,7 @@ SDRAM_LDQM <= SDRAM_DM(0);
 SDRAM_CTRLi : SDRAM_CTRL 
 port map (
 	CLK   => clk_int,
-	CLK_90 => clk_int_90,
+	CLK_130 => clk_int_130,
     nrst => nrst_reg,  
 
 	wrrd_ba_add => wrrd_ba_add,
