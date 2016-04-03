@@ -107,9 +107,9 @@ END PROCESS;
 clk_gen:PROCESS
    BEGIN
       clk <= '0';
-      WAIT FOR 2500 ps;
+      WAIT FOR 5000 ps;
       clk <= '1';
-      WAIT FOR 2500 ps;
+      WAIT FOR 5000 ps;
    END PROCESS;
 
 ------------------------------------------------------------------------
