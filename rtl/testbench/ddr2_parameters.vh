@@ -25,6 +25,12 @@
 *
 ****************************************************************************************/
 
+// setup for Nexys4
+
+`define sg25
+`define x16
+`define MAX_MEM
+
     // Parameters current with 1Gb datasheet rev P
 
     // Timing parameters based on Speed Grade
