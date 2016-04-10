@@ -84,9 +84,9 @@ component clk_manager
   Port ( 
     clk_in1 : in STD_LOGIC;
     clk_out1 : out STD_LOGIC;
-    clk_out2 : out STD_LOGIC; 
-    resetn	: in STD_LOGIC;
-    locked : out STD_LOGIC  
+    clk_out2 : out STD_LOGIC
+--    resetn	: in STD_LOGIC;
+--    locked : out STD_LOGIC  
   ); 
 end component;  
 
@@ -132,7 +132,8 @@ signal led_toggle : std_logic;
 
 signal ssdata : std_logic_vector(31 downto 0);
 
-signal reset, locked : std_logic;
+signal reset : std_logic := '1';
+signal reset_counter : integer range 0 to 4095 := 0;
                      
 begin
 
@@ -141,18 +142,30 @@ SDRAM_ODT <= '0';
 -----------------------------------------------------
 --	clk
 -----------------------------------------------------
-CLOCKMANAGER: clk_manager
+-- reset process
+process 
+begin
+	wait until rising_edge(clk_int);
+	if nrst = '0' then
+		reset_counter <= 0;
+		reset <= '1';
+	elsif reset_counter = 2000 then
+		reset <= '0';
+	else
+		reset_counter <= reset_counter + 1;
+	end if;
+end process;
 
+CLOCKMANAGER: clk_manager
 
   port map
    (-- Clock in ports
     clk_in1 => clk,
     clk_out1 => clk_int,
-    clk_out2 => clk_int_130,
-    resetn => nrst,
-    locked => locked);
-    
-reset <= not locked;
+    clk_out2 => clk_int_130
+    --resetn => nrst,
+    --locked => locked
+    );
 
 ----------------------------------------------
 -- nrst_reg

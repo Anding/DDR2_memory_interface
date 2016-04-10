@@ -117,7 +117,7 @@ clk_gen:PROCESS
 ------------------------------------------------------------------------
 reset_gen:PROCESS
    BEGIN
-      nrst <= '0';
+      nrst <= '1';
       WAIT FOR 600 ns;
       nrst <= '1' ;
 
