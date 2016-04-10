@@ -47,7 +47,7 @@ component SDRAM_CTRL is
 port (
 	CLK   : in  std_logic;
 	CLK_130 : in std_logic;
-    nrst : in  std_logic; 
+    reset : in  std_logic; 
 
 	wrrd_ba_add : in std_logic_vector(2 downto 0);
 	wrrd_ras_add : in std_logic_vector(12 downto 0);
@@ -84,7 +84,9 @@ component clk_manager
   Port ( 
     clk_in1 : in STD_LOGIC;
     clk_out1 : out STD_LOGIC;
-    clk_out2 : out STD_LOGIC   
+    clk_out2 : out STD_LOGIC; 
+    resetn	: in STD_LOGIC;
+    locked : out STD_LOGIC  
   ); 
 end component;  
 
@@ -129,6 +131,8 @@ signal time_cnt2 : integer range 0 to 4095;
 signal led_toggle : std_logic;
 
 signal ssdata : std_logic_vector(31 downto 0);
+
+signal reset, locked : std_logic;
                      
 begin
 
@@ -144,28 +148,31 @@ CLOCKMANAGER: clk_manager
    (-- Clock in ports
     clk_in1 => clk,
     clk_out1 => clk_int,
-    clk_out2 => clk_int_130);
+    clk_out2 => clk_int_130,
+    resetn => nrst,
+    locked => locked);
     
+reset <= not locked;
 
 ----------------------------------------------
 -- nrst_reg
 ----------------------------------------------
 
-nrst_reg_proc : process (clk_int) begin
-if (clk_int = '1' and clk_int'event) then
-   nrst_reg <= '0';
-   if (nrst = '1') then
-      nrst_reg <= '1';
-   end if;
-end if;
-end process;
+--nrst_reg_proc : process (clk_int, nrst) begin
+--if (clk_int = '1' and clk_int'event) then
+--   nrst_reg <= '0';
+--   if (nrst = '1') then
+--      nrst_reg <= '1';
+--   end if;
+--end if;
+--end process;
 
 -----------------------------------------------------
 --	For relaxing the timing: rd_dat gets registered
 -----------------------------------------------------
-rd_dat_reg_gen : process (clk_int, nrst_reg)
+rd_dat_reg_gen : process (clk_int, reset)
 begin
-if (nrst_reg='0') then
+if (reset='1') then
 	rd_dat_reg <= conv_std_logic_vector(0, rd_dat_reg'length);  
 --	rd_dat_reg0 <= conv_std_logic_vector(0, rd_dat_reg0'length);
 elsif (clk_int'event and clk_int='1') then	
@@ -179,10 +186,10 @@ end process;
 -----------------------------------------------------
 --	FSM
 -----------------------------------------------------
-gen_fsm : process (clk_int, nrst_reg)
+gen_fsm : process (clk_int, reset)
 variable counter_bus : std_logic_vector(15 downto 0);
 begin
-if (nrst_reg='0') then
+if (reset='1') then
 	wrrd_ba_add <= conv_std_logic_vector(0, wrrd_ba_add'length);
 	wrrd_ras_add <= conv_std_logic_vector(0, wrrd_ras_add'length);
 	wrrd_cas_add <= conv_std_logic_vector(0, wrrd_cas_add'length);
@@ -587,7 +594,7 @@ SDRAM_CTRLi : SDRAM_CTRL
 port map (
 	CLK   => clk_int,
 	CLK_130 => clk_int_130,
-    nrst => nrst_reg,  
+    reset => reset,  
 
 	wrrd_ba_add => wrrd_ba_add,
 	wrrd_ras_add => wrrd_ras_add,

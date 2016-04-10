@@ -11,7 +11,7 @@ entity SDRAM_CTRL is
 port (
 	CLK   : in  std_logic;								-- 125MHz clock
 	CLK_130 : in std_logic;								-- 125MHz clock 130 degree phase shift 
-    nrst : in  std_logic;
+    reset : in  std_logic;
         
 	wrrd_ba_add : in std_logic_vector(2 downto 0);		-- bank address	
 	wrrd_ras_add : in std_logic_vector(12 downto 0);  	-- row address
@@ -53,7 +53,7 @@ component SDRAM_PHYIO is
 port (
 	CLK   : in  std_logic;
 	CLK_130 : in std_logic;
-    nrst : in  std_logic; 
+    reset : in  std_logic; 
 
 	wrrd_ba_add : in std_logic_vector(2 downto 0);
 	wrrd_ras_add : in std_logic_vector(12 downto 0);
@@ -122,9 +122,9 @@ begin
 --	Refresh Mechanism
 -----------------------------------------------------
 
-refresh_gen : process (CLK, nrst)
+refresh_gen : process (CLK, reset)
 begin
-	if (nrst='0') then
+	if (reset='1') then
 		refresh_time_cnt <= 0;
 		refresh <= '0';
 	elsif (CLK'event and CLK='1') then	
@@ -148,7 +148,7 @@ SDRAM_PHYIOi : SDRAM_PHYIO
 port map (
 	CLK   => CLK,
 	CLK_130 => CLK_130,
-    nrst => nrst,  
+    reset => reset,  
 
 	wrrd_ba_add => wrrd_ba_add,
 	wrrd_ras_add => wrrd_ras_add,
