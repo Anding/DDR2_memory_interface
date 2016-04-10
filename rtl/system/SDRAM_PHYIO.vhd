@@ -666,14 +666,14 @@ when idle =>
 			dm_write <= not wr_we;
 			SDRAM_dq_out <= wr_dat_64(31 downto 0);  
 			counter <= 0;
-			
+ 			SDRAM_A <= '0' & wrrd_ras_add;  		-- Row address in A[12:0] (8K) - 1Gb_DDR2 p2
+ 			 			
 			if refresh = '1' then
 				state <= refresh_0;
 			         
 			elsif (wr_we /= "0000") OR
 		 	   (rd_re = '1') then 
 		 	   	SDRAM_BA <= wrrd_ba_add;				-- Bank address in BA[2:0] (8) - 1Gb_DDR2 p2
- 				SDRAM_A <= '0' & wrrd_ras_add;  		-- Row address in A[12:0] (8K) - 1Gb_DDR2 p2 
 				COMMAND <= CMD_ACTIVATE;
 				state <= bank_0;
 				bank_active <= wrrd_ba_add; 			-- save the activating bank (to detect a change)
@@ -684,7 +684,8 @@ when idle =>
 --	Bank Active
 -----------------------------------------------------
 when bank_0 => 									-- first state after activating a bank
-			COMMAND <= CMD_NOP;
+			COMMAND <= CMD_NOP;		
+			SDRAM_A <= "00000000000000";
 			if (counter = ct_RCD) then
 				state <= active;
 				counter <= 0;
@@ -779,12 +780,14 @@ when precharge_0 => 				-- tRPA (precharge all) timing requirement = 12.5ns (p36
 -----------------------------------------------------
 when refresh_0 => 											
 			COMMAND <= CMD_REFRESH;
+			SDRAM_A <= "00000000000000";
 			ref_ack <= '1';
 			state <= refresh_1;	
 			counter <= 0;	
 			
 when refresh_1 =>
 			COMMAND <= CMD_NOP;
+			SDRAM_A <= "00000000000000";
 			ref_ack <= '0';
 			counter <= counter + 1;
 			if (counter = ct_refresh) then					-- tRFC = refresh-to-refresh (or refresh-to-activate) = 127.5 ns
@@ -808,6 +811,7 @@ when refresh_1 =>
 when write_1 =>
 			dq_write <= '1';
 			COMMAND <= CMD_NOP;
+			SDRAM_A <= "00000000000000";
 			--dqs_write <= '1';
 			if (counter = ct_CAS) then
 				state <= write_2;
@@ -821,6 +825,7 @@ when write_1 =>
 -----------------------------------------------------
 when write_2 => 						-- 4n prefectch with x16 requires a second longword 
 			COMMAND <= CMD_NOP;		
+			SDRAM_A <= "00000000000000";
 			SDRAM_dq_out <= wr_dat_64(63 downto 32);
 			dm_write <= not wr_we_8(7 downto 4);							-- dm is output through the DDR interface						
 			state <= write_3;							--  however the last 32 bits are not presented by the controller
@@ -829,6 +834,7 @@ when write_2 => 						-- 4n prefectch with x16 requires a second longword
 -----------------------------------------------------
 when write_3 =>
 			COMMAND <= CMD_NOP;
+			SDRAM_A <= "00000000000000";
 			state <= write_4;
 -----------------------------------------------------
 --	Write 4
@@ -837,6 +843,7 @@ when write_4 =>
 			dq_write <= '0';
 			wr_ack <= '1';	
 			COMMAND <= CMD_NOP;
+			SDRAM_A <= "00000000000000";
 			--dqs_write <= '0';
 			counter <= 0;
 			state <= write_5;
@@ -847,6 +854,7 @@ when write_4 =>
 when write_5 =>      
 			wr_ack <= '0';
 			COMMAND <= CMD_NOP;
+			SDRAM_A <= "00000000000000";			
 			counter <= counter + 1;
 			if (counter = ct_WR) then						-- tWR Write Recovery time 15ns
 				state <= active;
@@ -867,34 +875,40 @@ when read_0 =>											-- SDRAM registers READ command
 -----------------------------------------------------
 --	Read 1
 -----------------------------------------------------
-when read_1 => 											
+when read_1 => 		
+			SDRAM_A <= "00000000000000";									
 			COMMAND <= CMD_NOP;
 			state <= read_2; 
 -----------------------------------------------------
 --	Read 2
 -----------------------------------------------------
-when read_2 =>											
+when read_2 =>				
+			SDRAM_A <= "00000000000000";							
 			COMMAND <= CMD_NOP;
 			state <= read_3; 
 -----------------------------------------------------
 --	Read 3
 -----------------------------------------------------
-when read_3 => 											
+when read_3 =>
+			SDRAM_A <= "00000000000000"; 											
 			COMMAND <= CMD_NOP;
 			state <= read_3b;
 			
-when read_3b => 											
+when read_3b => 	
+			SDRAM_A <= "00000000000000";										
 			COMMAND <= CMD_NOP;
 			state <= read_4;
 -----------------------------------------------------
 --	Read 3
 -----------------------------------------------------
 when read_4 =>
+			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;		
 			rd_dat_r(31 downto 0) <= SDRAM_dq_in_reg;			-- register data in	- low word of burst
 			state <= read_5;
 						
 when read_5 => 
+			SDRAM_A <= "00000000000000";
 			COMMAND <= CMD_NOP;		
 			rd_dat_r(63 downto 32) <= SDRAM_dq_in_reg;			-- register data in - high word of burst
 			rd_valid <= '1';	
