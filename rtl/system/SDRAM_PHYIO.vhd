@@ -202,22 +202,22 @@ constant refreshCount			: integer range 0 to 8191 := 7;			-- number of REFRESH c
 --constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
 
 -- Timing parameters at 125MHz (based on a 7.2us clock period including allowance)
---constant ct_init				: integer range 0 to 1023 := 56;	
---constant ct_precharge			: integer range 0 to 1023 := 2;
---constant ct_refresh				: integer range 0 to 1023 := 17;
---constant ct_RCD					: integer range 0 to 1023 := 1;
---constant ct_WR					: integer range 0 to 1023 := 2;
---constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
---constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
-
--- Timing parameters at 200MHz (based on a 5us clock period)
-constant ct_init				: integer range 0 to 1023 := 80;	
+constant ct_init				: integer range 0 to 1023 := 56;	
 constant ct_precharge			: integer range 0 to 1023 := 2;
-constant ct_refresh				: integer range 0 to 1023 := 25;
-constant ct_RCD					: integer range 0 to 1023 := 2;
-constant ct_WR					: integer range 0 to 1023 := 3;
+constant ct_refresh				: integer range 0 to 1023 := 17;
+constant ct_RCD					: integer range 0 to 1023 := 1;
+constant ct_WR					: integer range 0 to 1023 := 2;
 constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
 constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
+
+-- Timing parameters at 200MHz (based on a 5us clock period)
+--constant ct_init				: integer range 0 to 1023 := 80;	
+--constant ct_precharge			: integer range 0 to 1023 := 2;
+--constant ct_refresh				: integer range 0 to 1023 := 25;
+--constant ct_RCD					: integer range 0 to 1023 := 2;
+--constant ct_WR					: integer range 0 to 1023 := 3;
+--constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
+--constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
 
 
 signal SDRAM_dq_out_tmp : std_logic_vector(15 downto 0);
@@ -808,8 +808,7 @@ when refresh_1 =>
 -----------------------------------------------------
 --	Write 1
 -----------------------------------------------------
-when write_1 =>
-			dq_write <= '1';
+when write_1 =>	
 			COMMAND <= CMD_NOP;
 			SDRAM_A <= "00000000000000";
 			--dqs_write <= '1';
@@ -824,6 +823,7 @@ when write_1 =>
 --	Write 2
 -----------------------------------------------------
 when write_2 => 						-- 4n prefectch with x16 requires a second longword 
+			dq_write <= '1';
 			COMMAND <= CMD_NOP;		
 			SDRAM_A <= "00000000000000";
 			SDRAM_dq_out <= wr_dat_64(63 downto 32);
