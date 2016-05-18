@@ -193,22 +193,22 @@ constant refreshCount			: integer range 0 to 8191 := 7;			-- number of REFRESH c
 -- reg_CAS, ct_CAS	tCAS, CAS latency, pp32, 77:  Allowed values of CAS are 3, 4, 5, 6, 7
 
 -- Timing parameters at 100MHz (based on a 9us clock period including allowance)
---constant ct_init				: integer range 0 to 1023 := 45;	
---constant ct_precharge			: integer range 0 to 1023 := 1;
---constant ct_refresh				: integer range 0 to 1023 := 14;
---constant ct_RCD					: integer range 0 to 1023 := 1;
---constant ct_WR					: integer range 0 to 1023 := 1;
---constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
---constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
-
--- Timing parameters at 125MHz (based on a 7.2us clock period including allowance)
-constant ct_init				: integer range 0 to 1023 := 56;	
-constant ct_precharge			: integer range 0 to 1023 := 2;
-constant ct_refresh				: integer range 0 to 1023 := 17;
+constant ct_init				: integer range 0 to 1023 := 45;	
+constant ct_precharge			: integer range 0 to 1023 := 1;
+constant ct_refresh				: integer range 0 to 1023 := 14;
 constant ct_RCD					: integer range 0 to 1023 := 1;
-constant ct_WR					: integer range 0 to 1023 := 2;
+constant ct_WR					: integer range 0 to 1023 := 1;
 constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
 constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
+
+-- Timing parameters at 125MHz (based on a 7.2us clock period including allowance)
+--constant ct_init				: integer range 0 to 1023 := 56;	
+--constant ct_precharge			: integer range 0 to 1023 := 2;
+--constant ct_refresh				: integer range 0 to 1023 := 17;
+--constant ct_RCD					: integer range 0 to 1023 := 1;
+--constant ct_WR					: integer range 0 to 1023 := 2;
+--constant reg_CAS				: std_logic_vector(2 downto 0) := "011" ;
+--constant ct_CAS					: integer range 0 to 1023 := 0;  -- ct_CAS must be set to reg_CAS - 3
 
 -- Timing parameters at 200MHz (based on a 5us clock period)
 --constant ct_init				: integer range 0 to 1023 := 80;	
@@ -709,7 +709,7 @@ when active =>									-- Command to Bank n, 1Gb_DDDR2 p71
 			dm_write <= not wr_we_8(3 downto 0);
 			SDRAM_dq_out <= wr_dat_64(31 downto 0);			
 			counter <= 0;
-			--SDRAM_A <= "00000000000000";
+			SDRAM_A <= "00000000000000";
 			SDRAM_A <= "0000" & wrrd_cas_add(8 downto 0) & '0';	  	-- For READ/WRITE column address in A[9:0] (1K) - MT47H64M16HR-25E is WORD addressable- 1Gb_DDR2 p2 
 																	-- For a PRECHARGE operation only A[10] is significant and we require A[10] = '0' for single bank
 			-----------------------------------------------------
